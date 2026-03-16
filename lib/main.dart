@@ -19,6 +19,9 @@ void main() async {
   final appState = AppState();
   await appState.init();
 
+  // Request notification permission
+  await appState.requestNotificationPermission();
+
   final prefs = await SharedPreferences.getInstance();
   final onboarded = prefs.getBool('onboarded') ?? false;
 

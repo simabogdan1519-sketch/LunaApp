@@ -43,6 +43,7 @@ class RemindersScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          _PermissionBanner(),
           if (state.reminders.isNotEmpty) ...[
             _sectionTitle('My reminders'),
             ...state.reminders.map((r) => _ReminderTile(reminder: r,
@@ -82,6 +83,48 @@ class RemindersScreen extends StatelessWidget {
     context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
     builder: (_) => ChangeNotifierProvider.value(value: context.read<AppState>(), child: _AddReminderSheet(editing: reminder)),
   );
+}
+
+class _PermissionBanner extends StatefulWidget {
+  @override
+  State<_PermissionBanner> createState() => _PermissionBannerState();
+}
+
+class _PermissionBannerState extends State<_PermissionBanner> {
+  bool _dismissed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_dismissed) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: LunaTheme.primary.withOpacity(.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: LunaTheme.primary.withOpacity(.25)),
+      ),
+      child: Row(children: [
+        const Text('🔔', style: TextStyle(fontSize: 22)),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Enable notifications', style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: LunaTheme.text, fontSize: 13)),
+          Text('Allow notifications so Luna can remind you 💜', style: GoogleFonts.nunito(color: LunaTheme.text2, fontSize: 11)),
+        ])),
+        TextButton(
+          onPressed: () async {
+            await context.read<AppState>().requestNotificationPermission();
+            setState(() => _dismissed = true);
+          },
+          child: Text('Allow', style: GoogleFonts.nunito(color: LunaTheme.primary, fontWeight: FontWeight.w800)),
+        ),
+        GestureDetector(
+          onTap: () => setState(() => _dismissed = true),
+          child: Icon(Icons.close, size: 16, color: LunaTheme.text3),
+        ),
+      ]),
+    );
+  }
 }
 
 class _ReminderTile extends StatelessWidget {

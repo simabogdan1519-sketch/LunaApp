@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
+import 'notification_service.dart';
 import 'database_service.dart';
 import 'cycle_calculator.dart';
 import 'insights_engine.dart';
@@ -10,6 +11,7 @@ class AppState extends ChangeNotifier {
 
   String _userName = '';
   int _cycleLength = 28;
+  final _notif = NotificationService();
   int _periodLength = 5;
   String _language = 'English';
   String _companionEmoji = '🐱';
@@ -84,6 +86,12 @@ class AppState extends ChangeNotifier {
   // ── Init ──────────────────────────────────────────────────────────────────
 
   Future<void> init() async { await _loadPrefs(); await loadAll(); }
+
+  Future<void> _syncNotifications() async {
+    try {
+      await _notif.syncReminders(reminders, companionEmoji: _companionEmoji, companionName: _companionName);
+    } catch (_) {} // silently fail if permissions not granted
+  }
 
   Future<void> loadAll() async {
     cycles = await _db.getCycles();
@@ -212,7 +220,7 @@ class AppState extends ChangeNotifier {
     return pillLogs.any((l) => l.date.toIso8601String().split('T')[0] == today && l.taken);
   }
 
-  void setCompanion(String emoji, String name) { _companionEmoji = emoji; _companionName = name; savePrefs(); notifyListeners(); }
+  void setCompanion(String emoji, String name) { _companionEmoji = emoji; _companionName = name; savePrefs(); notifyListeners(); _syncNotifications(); }
 
   // ── Medical ───────────────────────────────────────────────────────────────
 
@@ -232,10 +240,13 @@ class AppState extends ChangeNotifier {
 
   // ── Reminders ─────────────────────────────────────────────────────────────
 
+  Future<void> requestNotificationPermission() => _notif.requestPermission();
+
   Future<void> addReminder(AppReminder r) async {
     await _db.insertReminder(r);
     reminders = await _db.getReminders();
     notifyListeners();
+    _syncNotifications();
   }
 
   Future<void> toggleReminder(AppReminder r) async {
@@ -243,15 +254,17 @@ class AppState extends ChangeNotifier {
     await _db.updateReminder(updated);
     reminders = await _db.getReminders();
     notifyListeners();
+    _syncNotifications();
   }
 
   Future<void> updateReminder(AppReminder r) async {
     await _db.updateReminder(r);
     reminders = await _db.getReminders();
     notifyListeners();
+    _syncNotifications();
   }
 
-  Future<void> deleteReminder(int id) async { await _db.deleteReminder(id); reminders.removeWhere((r) => r.id == id); notifyListeners(); }
+  Future<void> deleteReminder(int id) async { await _db.deleteReminder(id); reminders.removeWhere((r) => r.id == id); notifyListeners(); _notif.cancelOne(id); }
 
   List<String> getCompanionTips() {
     switch (currentPhase) {
