@@ -4,20 +4,24 @@ class CycleCalculator {
 
   // ── Smart predictions from history ──────────────────────────────────────────
 
-  /// Average cycle length from past cycles (ignores active cycle)
+  /// Average cycle length from past cycles (uses stored cycleLength field)
   static int avgCycleLength(List<CycleEntry> cycles, int fallback) {
-    final completed = cycles.where((c) => c.endDate != null).toList();
-    if (completed.isEmpty) return fallback;
-    final lengths = completed.map((c) => c.endDate!.difference(c.startDate).inDays).toList();
+    final withLength = cycles.where((c) => c.cycleLength > 10).toList();
+    if (withLength.isEmpty) return fallback;
+    final lengths = withLength.map((c) => c.cycleLength).toList();
     return (lengths.reduce((a, b) => a + b) / lengths.length).round();
   }
 
-  /// Average period length from past cycles
+  /// Average period length from past cycles (uses periodLength field or endDate-startDate)
   static int avgPeriodLength(List<CycleEntry> cycles, int fallback) {
     final completed = cycles.where((c) => c.endDate != null).toList();
     if (completed.isEmpty) return fallback;
-    // use periodLength field if stored, else estimate from cycle data
-    return (completed.map((c) => c.periodLength).reduce((a, b) => a + b) / completed.length).round();
+    final lengths = completed.map((c) {
+      // Use periodLength field if sensible, otherwise compute from dates
+      if (c.periodLength > 0 && c.periodLength <= 14) return c.periodLength;
+      return c.endDate!.difference(c.startDate).inDays.clamp(1, 14);
+    }).toList();
+    return (lengths.reduce((a, b) => a + b) / lengths.length).round();
   }
 
   /// Predict next 3 periods using smart average

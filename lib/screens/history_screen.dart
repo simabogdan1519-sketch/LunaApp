@@ -145,15 +145,19 @@ class _AddCycleSheetState extends State<_AddCycleSheet> {
     }
     setState(() => _saving = true);
     if (widget.editing != null) {
-      // Update existing cycle
+      // When editing: period end = _end, cycle length from user settings
+      final state = context.read<AppState>();
+      final bleedingDays = _end != null
+          ? _end!.difference(_start!).inDays.clamp(1, 14)
+          : widget.editing!.periodLength;
       final updated = CycleEntry(
         id: widget.editing!.id,
         startDate: _start!,
         endDate: _end,
-        cycleLength: _end != null ? _end!.difference(_start!).inDays : widget.editing!.cycleLength,
-        periodLength: widget.editing!.periodLength,
+        cycleLength: state.cycleLength,  // use current user setting
+        periodLength: bleedingDays,
       );
-      await context.read<AppState>().updateCycle(updated);
+      await state.updateCycle(updated);
     } else {
       await context.read<AppState>().addPastCycle(_start!, _end!);
     }
@@ -426,18 +430,39 @@ class _PastCyclesList extends StatelessWidget {
               decoration: BoxDecoration(color: Colors.red.shade100, borderRadius: BorderRadius.circular(12)),
               child: Icon(Icons.delete_outline, color: Colors.red.shade400),
             ),
+            confirmDismiss: (_) async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: Text('Delete cycle?', style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+                  content: Text(
+                    'Cycle from ${DateFormat("MMM d, yyyy").format(c.startDate)} will be permanently deleted.',
+                    style: GoogleFonts.nunito(),
+                  ),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: Text('Delete', style: TextStyle(color: Colors.red[400])),
+                    ),
+                  ],
+                ),
+              );
+              return confirm == true;
+            },
             onDismissed: (_) => onDelete(c.id!),
             child: Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Row(children: [
                 Container(width: 8, height: 8, decoration: BoxDecoration(color: isActive ? LunaTheme.menstrual : LunaTheme.primary, shape: BoxShape.circle)),
                 const SizedBox(width: 10),
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(DateFormat('MMM d, yyyy').format(c.startDate), style: GoogleFonts.nunito(color: LunaTheme.text, fontWeight: FontWeight.w700, fontSize: 13)),
-                  if (c.endDate != null)
-                    Text('ended ${DateFormat('MMM d').format(c.endDate!)}', style: GoogleFonts.nunito(color: LunaTheme.text3, fontSize: 11)),
-                ]),
-                const Spacer(),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(DateFormat('MMM d, yyyy').format(c.startDate), style: GoogleFonts.nunito(color: LunaTheme.text, fontWeight: FontWeight.w700, fontSize: 13)),
+                    if (c.endDate != null)
+                      Text('period ended ${DateFormat("MMM d").format(c.endDate!)}  •  ${c.endDate!.difference(c.startDate).inDays}d period', style: GoogleFonts.nunito(color: LunaTheme.text3, fontSize: 11)),
+                  ]),
+                ),
                 Row(mainAxisSize: MainAxisSize.min, children: [
                   isActive
                       ? Container(
@@ -445,11 +470,38 @@ class _PastCyclesList extends StatelessWidget {
                           decoration: BoxDecoration(color: LunaTheme.menstrual.withOpacity(.15), borderRadius: BorderRadius.circular(8)),
                           child: Text('Active 🩸', style: GoogleFonts.nunito(color: LunaTheme.menstrual, fontSize: 11, fontWeight: FontWeight.w700)),
                         )
-                      : Text('$length days', style: GoogleFonts.nunito(color: LunaTheme.text2, fontWeight: FontWeight.w700, fontSize: 13)),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () => onEdit(c),
-                    child: Icon(Icons.edit_outlined, size: 16, color: LunaTheme.primary),
+                      : Text('${c.cycleLength}d cycle', style: GoogleFonts.nunito(color: LunaTheme.text2, fontWeight: FontWeight.w700, fontSize: 12)),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: Icon(Icons.edit_outlined, size: 16, color: LunaTheme.primary),
+                    onPressed: () => onEdit(c),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red[300]),
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          title: Text('Delete cycle?', style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+                          content: Text(
+                            'Cycle from ${DateFormat("MMM d, yyyy").format(c.startDate)} will be permanently deleted.',
+                            style: GoogleFonts.nunito(),
+                          ),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: Text('Delete', style: TextStyle(color: Colors.red[400])),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) onDelete(c.id!);
+                    },
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                   ),
                 ]),
               ]),
