@@ -40,10 +40,20 @@ class HistoryScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 _PeriodLengthChart(cycles: state.cycles),
                 const SizedBox(height: 16),
-                _PastCyclesList(cycles: state.cycles, onDelete: (id) => state.deleteCycle(id), onAdd: () => _showAddCycleDialog(context)),
+                _PastCyclesList(cycles: state.cycles, onDelete: (id) => state.deleteCycle(id), onEdit: (c) => _showEditCycleDialog(context, c), onAdd: () => _showAddCycleDialog(context)),
                 const SizedBox(height: 32),
               ],
             ),
+    );
+  }
+
+  void _showEditCycleDialog(BuildContext context, CycleEntry cycle) {
+    showModalBottomSheet(
+      context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
+      builder: (_) => ChangeNotifierProvider.value(
+        value: context.read<AppState>(),
+        child: _AddCycleSheet(editing: cycle),
+      ),
     );
   }
 
@@ -52,7 +62,10 @@ class HistoryScreen extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const _AddCycleSheet(),
+      builder: (_) => ChangeNotifierProvider.value(
+        value: context.read<AppState>(),
+        child: _AddCycleSheet(),
+      ),
     );
   }
 }
@@ -87,7 +100,8 @@ class _EmptyState extends StatelessWidget {
 
 // ── Add Cycle Bottom Sheet ────────────────────────────────────────────────────
 class _AddCycleSheet extends StatefulWidget {
-  const _AddCycleSheet();
+  final CycleEntry? editing;
+  const _AddCycleSheet({this.editing});
   @override
   State<_AddCycleSheet> createState() => _AddCycleSheetState();
 }
@@ -95,6 +109,15 @@ class _AddCycleSheet extends StatefulWidget {
 class _AddCycleSheetState extends State<_AddCycleSheet> {
   DateTime? _start, _end;
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.editing != null) {
+      _start = widget.editing!.startDate;
+      _end   = widget.editing!.endDate;
+    }
+  }
 
   Future<void> _pickDate(bool isStart) async {
     final now = DateTime.now();
@@ -121,11 +144,24 @@ class _AddCycleSheetState extends State<_AddCycleSheet> {
       return;
     }
     setState(() => _saving = true);
-    await context.read<AppState>().addPastCycle(_start!, _end!);
+    if (widget.editing != null) {
+      // Update existing cycle
+      final updated = CycleEntry(
+        id: widget.editing!.id,
+        startDate: _start!,
+        endDate: _end,
+        cycleLength: _end != null ? _end!.difference(_start!).inDays : widget.editing!.cycleLength,
+        periodLength: widget.editing!.periodLength,
+      );
+      await context.read<AppState>().updateCycle(updated);
+    } else {
+      await context.read<AppState>().addPastCycle(_start!, _end!);
+    }
     if (mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Cycle added! 💜', style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+        content: Text(widget.editing != null ? 'Cycle updated! 💜' : 'Cycle added! 💜',
+            style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
         backgroundColor: LunaTheme.primary,
       ));
     }
@@ -369,8 +405,9 @@ class _PeriodLengthChart extends StatelessWidget {
 class _PastCyclesList extends StatelessWidget {
   final List<CycleEntry> cycles;
   final ValueChanged<int> onDelete;
+  final ValueChanged<CycleEntry> onEdit;
   final VoidCallback onAdd;
-  const _PastCyclesList({required this.cycles, required this.onDelete, required this.onAdd});
+  const _PastCyclesList({required this.cycles, required this.onDelete, required this.onEdit, required this.onAdd});
 
   @override
   Widget build(BuildContext context) {
@@ -401,13 +438,20 @@ class _PastCyclesList extends StatelessWidget {
                     Text('ended ${DateFormat('MMM d').format(c.endDate!)}', style: GoogleFonts.nunito(color: LunaTheme.text3, fontSize: 11)),
                 ]),
                 const Spacer(),
-                isActive
-                    ? Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(color: LunaTheme.menstrual.withOpacity(.15), borderRadius: BorderRadius.circular(8)),
-                        child: Text('Active 🩸', style: GoogleFonts.nunito(color: LunaTheme.menstrual, fontSize: 11, fontWeight: FontWeight.w700)),
-                      )
-                    : Text('$length days', style: GoogleFonts.nunito(color: LunaTheme.text2, fontWeight: FontWeight.w700, fontSize: 13)),
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  isActive
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(color: LunaTheme.menstrual.withOpacity(.15), borderRadius: BorderRadius.circular(8)),
+                          child: Text('Active 🩸', style: GoogleFonts.nunito(color: LunaTheme.menstrual, fontSize: 11, fontWeight: FontWeight.w700)),
+                        )
+                      : Text('$length days', style: GoogleFonts.nunito(color: LunaTheme.text2, fontWeight: FontWeight.w700, fontSize: 13)),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => onEdit(c),
+                    child: Icon(Icons.edit_outlined, size: 16, color: LunaTheme.primary),
+                  ),
+                ]),
               ]),
             ),
           );

@@ -158,7 +158,43 @@ class _LogScreenState extends State<LogScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 16),
+          // Delete today's log button — only shown if log already saved
+          Consumer<AppState>(
+            builder: (ctx, state, _) => state.todayLog != null
+              ? TextButton.icon(
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: ctx,
+                      builder: (_) => AlertDialog(
+                        title: Text('Delete today's log?', style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+                        content: Text('All entries for today will be removed.', style: GoogleFonts.nunito()),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                          TextButton(onPressed: () => Navigator.pop(ctx, true),
+                              child: Text('Delete', style: TextStyle(color: Colors.red[400]))),
+                        ],
+                      ),
+                    );
+                    if (confirm == true && ctx.mounted) {
+                      await ctx.read<AppState>().deleteDayLog(DateTime.now());
+                      setState(() {
+                        _mood = null; _energy = null; _pain = null;
+                        _symptoms.clear(); _notesCtrl.clear(); _tempCtrl.clear();
+                        _loaded = false;
+                      });
+                      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(
+                        const SnackBar(content: Text('Log deleted'), backgroundColor: Colors.grey),
+                      );
+                    }
+                  },
+                  icon: Icon(Icons.delete_outline_rounded, color: Colors.red[300], size: 18),
+                  label: Text('Delete today's log',
+                      style: GoogleFonts.nunito(color: Colors.red[300], fontSize: 13, fontWeight: FontWeight.w600)),
+                )
+              : const SizedBox.shrink(),
+          ),
+          const SizedBox(height: 24),
         ]),
       ),
     );

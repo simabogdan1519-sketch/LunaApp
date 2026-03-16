@@ -88,7 +88,12 @@ class MedicalScreen extends StatelessWidget {
 
   void _showAddSheet(BuildContext context) => showModalBottomSheet(
     context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
-    builder: (_) => ChangeNotifierProvider.value(value: context.read<AppState>(), child: const _AddMedicalSheet()),
+    builder: (_) => ChangeNotifierProvider.value(value: context.read<AppState>(), child: _AddMedicalSheet()),
+  );
+
+  void _showEditSheet(BuildContext context, MedicalRecord record) => showModalBottomSheet(
+    context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
+    builder: (_) => ChangeNotifierProvider.value(value: context.read<AppState>(), child: _AddMedicalSheet(editing: record)),
   );
 }
 

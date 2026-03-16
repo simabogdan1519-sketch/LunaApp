@@ -48,6 +48,7 @@ class RemindersScreen extends StatelessWidget {
             ...state.reminders.map((r) => _ReminderTile(reminder: r,
               onToggle: () => state.toggleReminder(r),
               onDelete: () => state.deleteReminder(r.id!),
+              onEdit:   () => _showEditSheet(context, r),
             )),
             const SizedBox(height: 20),
           ],
@@ -74,14 +75,14 @@ class RemindersScreen extends StatelessWidget {
 
   void _showAddSheet(BuildContext context) => showModalBottomSheet(
     context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
-    builder: (_) => ChangeNotifierProvider.value(value: context.read<AppState>(), child: const _AddReminderSheet()),
+    builder: (_) => ChangeNotifierProvider.value(value: context.read<AppState>(), child: _AddReminderSheet()),
   );
 }
 
 class _ReminderTile extends StatelessWidget {
   final AppReminder reminder;
-  final VoidCallback onToggle, onDelete;
-  const _ReminderTile({required this.reminder, required this.onToggle, required this.onDelete});
+  final VoidCallback onToggle, onDelete, onEdit;
+  const _ReminderTile({required this.reminder, required this.onToggle, required this.onDelete, required this.onEdit});
 
   String get _typeLabel {
     switch (reminder.type) {
@@ -123,6 +124,11 @@ class _ReminderTile extends StatelessWidget {
               child: Text(_typeLabel, style: GoogleFonts.nunito(fontSize: 10, color: LunaTheme.text2, fontWeight: FontWeight.w600))),
           ]),
         ])),
+        IconButton(
+          icon: Icon(Icons.edit_outlined, size: 18, color: LunaTheme.primary),
+          onPressed: onEdit,
+          tooltip: 'Edit',
+        ),
         Switch(value: reminder.enabled, onChanged: (_) => onToggle(), activeColor: LunaTheme.primary),
       ]),
     ),
