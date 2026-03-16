@@ -2,7 +2,7 @@
 
 <img src="icons/mipmap-xxxhdpi/ic_launcher.png" width="110" alt="Luna" />
 
-#  LunaApp
+# 🌙 Luna
 
 **Feminine health tracker — private, smart, ad-free**
 
