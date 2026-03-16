@@ -105,39 +105,44 @@ class NotificationService {
 
   Future<void> init() async {
     if (_initialized) return;
-
-    // Set up timezone - use UTC as safe fallback, avoids local tz lookup issues
-    tz_data.initializeTimeZones();
-    tz.setLocalLocation(tz.UTC); // we'll offset manually using device DateTime
-
-    const androidSettings =
-        AndroidInitializationSettings('ic_luna_notif'); // no @ prefix here
-    const settings = InitializationSettings(android: androidSettings);
-    await _plugin.initialize(settings);
-    _initialized = true;
+    try {
+      tz_data.initializeTimeZones();
+      try { tz.setLocalLocation(tz.UTC); } catch (_) {}
+      const androidSettings = AndroidInitializationSettings('ic_luna_notif');
+      const settings = InitializationSettings(android: androidSettings);
+      await _plugin.initialize(settings);
+      _initialized = true;
+    } catch (e) {
+      print('NotificationService init error: $e');
+      _initialized = true; // mark as done so we don't retry infinitely
+    }
   }
 
   // Check if permission is already granted (Android 13+)
   Future<bool> hasPermission() async {
-    await init();
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    if (android != null) {
-      final granted = await android.areNotificationsEnabled();
-      return granted ?? false;
-    }
-    return true;
+    try {
+      await init();
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        final granted = await android.areNotificationsEnabled();
+        return granted ?? false;
+      }
+    } catch (_) {}
+    return true; // assume granted if check fails
   }
 
   // Request permission
   Future<bool> requestPermission() async {
-    await init();
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    if (android != null) {
-      final granted = await android.requestNotificationsPermission();
-      return granted ?? false;
-    }
+    try {
+      await init();
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        final granted = await android.requestNotificationsPermission();
+        return granted ?? false;
+      }
+    } catch (_) {}
     return true;
   }
 
