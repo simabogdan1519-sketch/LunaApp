@@ -77,6 +77,11 @@ class RemindersScreen extends StatelessWidget {
     context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
     builder: (_) => ChangeNotifierProvider.value(value: context.read<AppState>(), child: _AddReminderSheet()),
   );
+
+  void _showEditSheet(BuildContext context, AppReminder reminder) => showModalBottomSheet(
+    context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
+    builder: (_) => ChangeNotifierProvider.value(value: context.read<AppState>(), child: _AddReminderSheet(editing: reminder)),
+  );
 }
 
 class _ReminderTile extends StatelessWidget {

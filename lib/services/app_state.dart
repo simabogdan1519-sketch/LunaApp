@@ -142,6 +142,11 @@ class AppState extends ChangeNotifier {
     await loadAll();
   }
 
+  Future<void> updateCycle(CycleEntry c) async {
+    await _db.updateCycle(c);
+    await loadAll();
+  }
+
   Future<void> deleteCycle(int id) async { await _db.deleteCycle(id); await loadAll(); }
 
   // ── Logs ──────────────────────────────────────────────────────────────────

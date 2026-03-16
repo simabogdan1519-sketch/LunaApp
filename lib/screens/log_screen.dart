@@ -167,7 +167,7 @@ class _LogScreenState extends State<LogScreen> {
                     final confirm = await showDialog<bool>(
                       context: ctx,
                       builder: (_) => AlertDialog(
-                        title: Text('Delete today's log?', style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
+                        title: Text('Delete today\'s log?', style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
                         content: Text('All entries for today will be removed.', style: GoogleFonts.nunito()),
                         actions: [
                           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
@@ -189,7 +189,7 @@ class _LogScreenState extends State<LogScreen> {
                     }
                   },
                   icon: Icon(Icons.delete_outline_rounded, color: Colors.red[300], size: 18),
-                  label: Text('Delete today's log',
+                  label: Text('Delete today\'s log',
                       style: GoogleFonts.nunito(color: Colors.red[300], fontSize: 13, fontWeight: FontWeight.w600)),
                 )
               : const SizedBox.shrink(),
