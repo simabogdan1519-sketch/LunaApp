@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/app_state.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../services/notification_service.dart';
 import '../theme/luna_theme.dart';
 import '../models/models.dart';
@@ -87,22 +86,9 @@ class RemindersScreen extends StatelessWidget {
 
   void _sendTestNotification(BuildContext context) async {
     final state = context.read<AppState>();
-    final svc = NotificationService();
-    await svc.init();
-    // Show immediately — no scheduling, just a direct show()
-    final icon = state.companionEmoji;
-    final name = state.companionName;
-    final androidDetails = AndroidNotificationDetails(
-      'luna_reminders', 'Luna Reminders',
-      channelDescription: 'Reminders from your Luna companion',
-      importance: Importance.high, priority: Priority.high,
-      color: const Color(0xFFE57FA0),
-    );
-    await FlutterLocalNotificationsPlugin().show(
-      9999,
-      '$icon $name',
-      'Bună! 🌸 Notificările funcționează! Acum vei primi reminder-ele la timp 💜',
-      NotificationDetails(android: androidDetails),
+    await NotificationService().sendTest(
+      companionEmoji: state.companionEmoji,
+      companionName: state.companionName,
     );
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
