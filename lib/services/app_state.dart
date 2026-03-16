@@ -159,9 +159,21 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateJournalEntry(JournalEntry entry) async {
+    await _db.updateJournal(entry);
+    journalEntries = await _db.getJournalEntries();
+    notifyListeners();
+  }
+
   Future<void> deleteJournalEntry(int id) async {
     await _db.deleteJournal(id);
     journalEntries.removeWhere((e) => e.id == id);
+    notifyListeners();
+  }
+
+  Future<void> deleteDayLog(DateTime date) async {
+    await _db.deleteDayLog(date);
+    allDayLogs.removeWhere((l) => l.date.toIso8601String().split('T')[0] == date.toIso8601String().split('T')[0]);
     notifyListeners();
   }
 
@@ -198,6 +210,12 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateMedicalRecord(MedicalRecord r) async {
+    await _db.updateMedical(r);
+    medicalRecords = await _db.getMedicalRecords();
+    notifyListeners();
+  }
+
   Future<void> deleteMedicalRecord(int id) async { await _db.deleteMedical(id); medicalRecords.removeWhere((r) => r.id == id); notifyListeners(); }
 
   // ── Reminders ─────────────────────────────────────────────────────────────
@@ -211,6 +229,12 @@ class AppState extends ChangeNotifier {
   Future<void> toggleReminder(AppReminder r) async {
     final updated = AppReminder(id: r.id, title: r.title, type: r.type, time: r.time, enabled: !r.enabled, note: r.note, nextDue: r.nextDue);
     await _db.updateReminder(updated);
+    reminders = await _db.getReminders();
+    notifyListeners();
+  }
+
+  Future<void> updateReminder(AppReminder r) async {
+    await _db.updateReminder(r);
     reminders = await _db.getReminders();
     notifyListeners();
   }

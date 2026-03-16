@@ -153,7 +153,8 @@ class _PresetTile extends StatelessWidget {
 }
 
 class _AddReminderSheet extends StatefulWidget {
-  const _AddReminderSheet();
+  final AppReminder? editing;
+  const _AddReminderSheet({this.editing});
   @override
   State<_AddReminderSheet> createState() => _AddReminderSheetState();
 }
@@ -172,11 +173,42 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
     if (p != null) setState(() => _time = '${p.hour.toString().padLeft(2, '0')}:${p.minute.toString().padLeft(2, '0')}');
   }
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.editing != null) {
+      _titleCtrl.text = widget.editing!.title;
+      _type = widget.editing!.type;
+      _time = widget.editing!.time;
+      if (widget.editing!.note != null) _noteCtrl.text = widget.editing!.note!;
+    }
+  }
+
   Future<void> _save() async {
     if (_titleCtrl.text.trim().isEmpty) return;
+    if (_saving) return;
     setState(() => _saving = true);
-    await context.read<AppState>().addReminder(AppReminder(title: _titleCtrl.text.trim(), type: _type, time: _time, note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim()));
-    if (mounted) { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Reminder set! 🔔', style: GoogleFonts.nunito(fontWeight: FontWeight.w700)), backgroundColor: LunaTheme.primary)); }
+    final r = AppReminder(
+      id: widget.editing?.id,
+      title: _titleCtrl.text.trim(),
+      type: _type,
+      time: _time,
+      note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
+      enabled: widget.editing?.enabled ?? true,
+    );
+    if (widget.editing != null) {
+      await context.read<AppState>().updateReminder(r);
+    } else {
+      await context.read<AppState>().addReminder(r);
+    }
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(widget.editing != null ? 'Reminder updated! 🔔' : 'Reminder set! 🔔',
+            style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+        backgroundColor: LunaTheme.primary,
+      ));
+    }
   }
 
   @override
@@ -188,7 +220,7 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
         Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: LunaTheme.surfaceV, borderRadius: BorderRadius.circular(2)))),
         const SizedBox(height: 16),
-        Text('New reminder', style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w900, color: LunaTheme.text)),
+        Text(widget.editing != null ? 'Edit reminder' : 'New reminder', style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w900, color: LunaTheme.text)),
         const SizedBox(height: 16),
         TextField(controller: _titleCtrl, decoration: const InputDecoration(hintText: 'Reminder name'), style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
         const SizedBox(height: 12),

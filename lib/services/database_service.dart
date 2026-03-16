@@ -58,6 +58,8 @@ class DatabaseService {
     return rows.isEmpty ? null : DayLog.fromMap(rows.first);
   }
 
+  Future<void> deleteDayLog(DateTime date) async => (await db).delete('day_logs', where: 'date=?', whereArgs: [date.toIso8601String().split('T')[0]]);
+
   Future<List<DayLog>> getAllDayLogs() async {
     final rows = await (await db).query('day_logs', orderBy: 'date DESC');
     return rows.map(DayLog.fromMap).toList();
@@ -66,6 +68,7 @@ class DatabaseService {
   // ── Journal ──────────────────────────────────────────────────────────────────
   Future<int> insertJournal(JournalEntry e) async { final m = e.toMap()..remove('id'); return (await db).insert('journal_entries', m); }
   Future<List<JournalEntry>> getJournalEntries() async => ((await db).query('journal_entries', orderBy: 'date DESC')).then((r) => r.map(JournalEntry.fromMap).toList());
+  Future<void> updateJournal(JournalEntry e) async => (await db).update('journal_entries', e.toMap(), where: 'id=?', whereArgs: [e.id]);
   Future<void> deleteJournal(int id) async => (await db).delete('journal_entries', where: 'id=?', whereArgs: [id]);
 
   // ── Contra ───────────────────────────────────────────────────────────────────

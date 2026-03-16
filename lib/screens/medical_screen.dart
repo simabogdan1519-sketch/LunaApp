@@ -37,11 +37,11 @@ class MedicalScreen extends StatelessWidget {
               children: [
                 if (state.upcomingMedical.isNotEmpty) ...[
                   _sectionTitle('📅 Upcoming'),
-                  ...state.upcomingMedical.take(3).map((r) => _RecordCard(record: r, onDelete: () => state.deleteMedicalRecord(r.id!), upcoming: true)),
+                  ...state.upcomingMedical.take(3).map((r) => _RecordCard(record: r, onDelete: () => state.deleteMedicalRecord(r.id!), onEdit: () => _showEditSheet(context, r), upcoming: true)),
                   const SizedBox(height: 16),
                 ],
                 _sectionTitle('📋 All records'),
-                ...state.medicalRecords.map((r) => _RecordCard(record: r, onDelete: () => state.deleteMedicalRecord(r.id!), upcoming: false)),
+                ...state.medicalRecords.map((r) => _RecordCard(record: r, onDelete: () => state.deleteMedicalRecord(r.id!), onEdit: () => _showEditSheet(context, r), upcoming: false)),
                 const SizedBox(height: 32),
               ],
             ),
@@ -95,8 +95,9 @@ class MedicalScreen extends StatelessWidget {
 class _RecordCard extends StatelessWidget {
   final MedicalRecord record;
   final VoidCallback onDelete;
+  final VoidCallback onEdit;
   final bool upcoming;
-  const _RecordCard({required this.record, required this.onDelete, required this.upcoming});
+  const _RecordCard({required this.record, required this.onDelete, required this.onEdit, required this.upcoming});
 
   Color get _typeColor {
     switch (record.result?.toLowerCase()) {
@@ -155,11 +156,18 @@ class _RecordCard extends StatelessWidget {
             if (record.notes != null && record.notes!.isNotEmpty)
               Text(record.notes!, style: GoogleFonts.nunito(color: LunaTheme.text2, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
           ])),
-          if (record.result != null) Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(color: _typeColor.withOpacity(.15), borderRadius: BorderRadius.circular(8)),
-            child: Text(record.result!, style: GoogleFonts.nunito(color: _typeColor, fontSize: 10, fontWeight: FontWeight.w700)),
-          ),
+          Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            if (record.result != null) Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(color: _typeColor.withOpacity(.15), borderRadius: BorderRadius.circular(8)),
+              child: Text(record.result!, style: GoogleFonts.nunito(color: _typeColor, fontSize: 10, fontWeight: FontWeight.w700)),
+            ),
+            const SizedBox(height: 4),
+            GestureDetector(
+              onTap: onEdit,
+              child: Icon(Icons.edit_outlined, size: 16, color: LunaTheme.primary),
+            ),
+          ]),
         ]),
       ),
     );
@@ -167,7 +175,8 @@ class _RecordCard extends StatelessWidget {
 }
 
 class _AddMedicalSheet extends StatefulWidget {
-  const _AddMedicalSheet();
+  final MedicalRecord? editing;
+  const _AddMedicalSheet({this.editing});
   @override
   State<_AddMedicalSheet> createState() => _AddMedicalSheetState();
 }
@@ -184,11 +193,48 @@ class _AddMedicalSheetState extends State<_AddMedicalSheet> {
   static const _types = {'checkup': '🩺 Check-up', 'blood_test': '🩸 Blood test', 'ultrasound': '🔬 Ultrasound / Imaging', 'vaccine': '💉 Vaccine', 'dentist': '🦷 Dentist', 'other': '📋 Other'};
   static const _results = ['normal', 'abnormal', 'pending'];
 
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.editing;
+    if (e != null) {
+      _titleCtrl.text = e.title;
+      _type    = e.type;
+      _result  = e.result;
+      _date    = e.date;
+      _nextDue = e.nextDue;
+      if (e.notes != null) _notesCtrl.text = e.notes!;
+    }
+  }
+
   Future<void> _save() async {
-    if (_titleCtrl.text.trim().isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a title'))); return; }
+    if (_titleCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a title')));
+      return;
+    }
+    if (_saving) return;
     setState(() => _saving = true);
-    await context.read<AppState>().addMedicalRecord(MedicalRecord(date: _date, type: _type, title: _titleCtrl.text.trim(), notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(), result: _result, nextDue: _nextDue));
-    if (mounted) { Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Record saved! 🩺', style: GoogleFonts.nunito(fontWeight: FontWeight.w700)), backgroundColor: LunaTheme.primary)); }
+    final rec = MedicalRecord(
+      id: widget.editing?.id,
+      date: _date, type: _type,
+      title: _titleCtrl.text.trim(),
+      notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+      result: _result,
+      nextDue: _nextDue,
+    );
+    if (widget.editing != null) {
+      await context.read<AppState>().updateMedicalRecord(rec);
+    } else {
+      await context.read<AppState>().addMedicalRecord(rec);
+    }
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(widget.editing != null ? 'Record updated! 🩺' : 'Record saved! 🩺',
+            style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
+        backgroundColor: LunaTheme.primary,
+      ));
+    }
   }
 
   @override
@@ -202,7 +248,7 @@ class _AddMedicalSheetState extends State<_AddMedicalSheet> {
         child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: LunaTheme.surfaceV, borderRadius: BorderRadius.circular(2)))),
           const SizedBox(height: 16),
-          Text('Add medical record', style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w900, color: LunaTheme.text)),
+          Text(widget.editing != null ? 'Edit medical record' : 'Add medical record', style: GoogleFonts.nunito(fontSize: 18, fontWeight: FontWeight.w900, color: LunaTheme.text)),
           const SizedBox(height: 16),
           TextField(controller: _titleCtrl, decoration: const InputDecoration(hintText: 'e.g. Annual check-up, Pap smear...'), style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
           const SizedBox(height: 16),
