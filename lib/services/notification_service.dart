@@ -78,17 +78,7 @@ class NotificationService {
     if (_initialized) return;
     try {
       tz_data.initializeTimeZones();
-      final now = DateTime.now();
-      final offsetMs = now.timeZoneOffset.inMilliseconds;
-      // Find a timezone matching the device's current UTC offset
-      tz.Location? found;
-      for (final loc in tz.timeZoneDatabase.locations.values) {
-        if (loc.currentTimeZone.offset == offsetMs) {
-          found = loc;
-          break;
-        }
-      }
-      tz.setLocalLocation(found ?? tz.UTC);
+      // TZDateTime.local() uses the device clock directly — no setLocalLocation needed
     } catch (_) {}
 
     try {
@@ -184,12 +174,15 @@ class NotificationService {
     );
     final details = NotificationDetails(android: androidDetails);
 
-    // Next occurrence of HH:mm in local time
-    final now  = DateTime.now();
-    var next   = DateTime(now.year, now.month, now.day, hour, minute);
+    // Build next fire time using device local time
+    final now = DateTime.now();
+    var next = DateTime(now.year, now.month, now.day, hour, minute);
     if (!next.isAfter(now)) next = next.add(const Duration(days: 1));
 
-    final tzNext = tz.TZDateTime.from(next, tz.local);
+    // Use TZDateTime.local() — reads the device clock directly, no tz database needed
+    final tzNext = tz.TZDateTime.local(
+      next.year, next.month, next.day, next.hour, next.minute,
+    );
 
     switch (reminder.type) {
       case 'daily':
