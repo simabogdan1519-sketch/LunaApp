@@ -28,282 +28,186 @@ class MainScaffold extends StatefulWidget {
 }
 
 class _MainScaffoldState extends State<MainScaffold> {
-  int _groupIdx = 0;
-  int _tabIdx   = 0;
+  int _selectedIdx = 0;
 
-  List<List<_TabDef>> _buildGroups(bool contra) => [
-    [
-      _TabDef('🏠', 'Home',     const HomeScreen()),
-      _TabDef('💗', 'Log',      const LogScreen()),
-      _TabDef('📅', 'Calendar', const CalendarScreen()),
-      _TabDef('📝', 'Journal',  const JournalScreen()),
-    ],
-    [
-      _TabDef('💡', 'Tips',      const TipsScreen()),
-      _TabDef('📊', 'History',   const HistoryScreen()),
-      _TabDef('🩺', 'Medical',   const MedicalScreen()),
-      _TabDef('🔔', 'Reminders', const RemindersScreen()),
-    ],
-    [
-      if (contra) _TabDef('💊', 'Contra', const ContraScreen()),
-      _TabDef('👩', 'Profile', const SettingsScreen()),
-    ],
+  List<_TabDef> _buildTabs(bool contra) => [
+    _TabDef('🏠', 'Home',      const HomeScreen()),
+    _TabDef('💗', 'Log',       const LogScreen()),
+    _TabDef('📅', 'Calendar',  const CalendarScreen()),
+    _TabDef('📝', 'Journal',   const JournalScreen()),
+    _TabDef('💡', 'Tips',      const TipsScreen()),
+    _TabDef('📊', 'History',   const HistoryScreen()),
+    _TabDef('🩺', 'Medical',   const MedicalScreen()),
+    _TabDef('🔔', 'Reminders', const RemindersScreen()),
+    if (contra) _TabDef('💊', 'Contra', const ContraScreen()),
+    _TabDef('👩', 'Profile',   const SettingsScreen()),
   ];
 
-  void _goToGroup(int g, List<List<_TabDef>> groups) {
-    final clamped = g.clamp(0, groups.length - 1);
-    if (clamped == _groupIdx) return;
+  void _select(int i) {
+    if (i == _selectedIdx) return;
     HapticFeedback.lightImpact();
-    setState(() { _groupIdx = clamped; _tabIdx = 0; });
-  }
-
-  void _onTabTap(int t) {
-    HapticFeedback.lightImpact();
-    setState(() => _tabIdx = t);
+    setState(() => _selectedIdx = i);
   }
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final groups = _buildGroups(state.contraEnabled)
-        .where((g) => g.isNotEmpty).toList();
-    final safeG = _groupIdx.clamp(0, groups.length - 1);
-    final group  = groups[safeG];
-    final safeT  = _tabIdx.clamp(0, group.length - 1);
+    final tabs = _buildTabs(state.contraEnabled);
+    final safeIdx = _selectedIdx.clamp(0, tabs.length - 1);
 
     return Scaffold(
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 200),
         switchInCurve: Curves.easeOut,
         child: KeyedSubtree(
-          key: ValueKey('$safeG-$safeT'),
-          child: group[safeT].screen,
+          key: ValueKey(safeIdx),
+          child: tabs[safeIdx].screen,
         ),
       ),
-      bottomNavigationBar: _LunaNavBar(
-        groups: groups,
-        currentGroup: safeG,
-        currentTab: safeT,
-        onTabTap: _onTabTap,
-        onSwipe: (dir) => _goToGroup(safeG + dir, groups),
-        onDotTap: (g) {
-          HapticFeedback.lightImpact();
-          setState(() { _groupIdx = g; _tabIdx = 0; });
-        },
+      bottomNavigationBar: _ScrollableNavBar(
+        tabs: tabs,
+        selectedIdx: safeIdx,
+        onSelect: _select,
       ),
     );
   }
 }
 
-// ── Nav bar cu swipe ──────────────────────────────────────────────────────────
-class _LunaNavBar extends StatefulWidget {
-  final List<List<_TabDef>> groups;
-  final int currentGroup, currentTab;
-  final ValueChanged<int> onTabTap, onDotTap;
-  final ValueChanged<int> onSwipe; // -1 left, +1 right
+// ── Scrollable nav bar ────────────────────────────────────────────────────────
+class _ScrollableNavBar extends StatefulWidget {
+  final List<_TabDef> tabs;
+  final int selectedIdx;
+  final ValueChanged<int> onSelect;
 
-  const _LunaNavBar({
-    required this.groups,
-    required this.currentGroup,
-    required this.currentTab,
-    required this.onTabTap,
-    required this.onDotTap,
-    required this.onSwipe,
+  const _ScrollableNavBar({
+    required this.tabs,
+    required this.selectedIdx,
+    required this.onSelect,
   });
 
   @override
-  State<_LunaNavBar> createState() => _LunaNavBarState();
+  State<_ScrollableNavBar> createState() => _ScrollableNavBarState();
 }
 
-class _LunaNavBarState extends State<_LunaNavBar>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _slideCtrl;
-  late Animation<Offset> _slideAnim;
-  int _lastGroup = 0;
+class _ScrollableNavBarState extends State<_ScrollableNavBar> {
+  late final ScrollController _scrollCtrl;
+
+  // Width of each tab item
+  static const double _itemW = 72.0;
+  static const double _itemH = 62.0;
 
   @override
   void initState() {
     super.initState();
-    _lastGroup = widget.currentGroup;
-    _slideCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 260),
-    );
-    _slideAnim = Tween<Offset>(begin: Offset.zero, end: Offset.zero)
-        .animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOut));
-  }
-
-  @override
-  void didUpdateWidget(_LunaNavBar old) {
-    super.didUpdateWidget(old);
-    if (widget.currentGroup != old.currentGroup) {
-      // Animate icons sliding in from correct direction
-      final dir = widget.currentGroup > old.currentGroup ? 1.0 : -1.0;
-      _slideAnim = Tween<Offset>(
-        begin: Offset(dir * 0.35, 0),
-        end: Offset.zero,
-      ).animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOut));
-      _slideCtrl.forward(from: 0);
-      _lastGroup = widget.currentGroup;
-    }
+    _scrollCtrl = ScrollController();
   }
 
   @override
   void dispose() {
-    _slideCtrl.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
-  static const double _kVelocityThreshold = 200;
+  @override
+  void didUpdateWidget(_ScrollableNavBar old) {
+    super.didUpdateWidget(old);
+    // Smoothly scroll selected item into center view
+    if (widget.selectedIdx != old.selectedIdx) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelected());
+    }
+  }
+
+  void _scrollToSelected() {
+    if (!_scrollCtrl.hasClients) return;
+    final screenW = _scrollCtrl.position.viewportDimension;
+    final targetOffset = widget.selectedIdx * _itemW - screenW / 2 + _itemW / 2;
+    _scrollCtrl.animateTo(
+      targetOffset.clamp(0.0, _scrollCtrl.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final group    = widget.groups[widget.currentGroup];
     final bottomPad = MediaQuery.of(context).padding.bottom;
 
-    return GestureDetector(
-      onHorizontalDragEnd: (d) {
-        final vx = d.velocity.pixelsPerSecond.dx;
-        if (vx.abs() > _kVelocityThreshold) {
-          // swipe right (vx > 0) → previous group (-1)
-          // swipe left  (vx < 0) → next group    (+1)
-          widget.onSwipe(vx < 0 ? 1 : -1);
-        }
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: LunaTheme.primary.withOpacity(.10),
-              blurRadius: 16,
-              offset: const Offset(0, -3),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+    return Container(
+      height: _itemH + bottomPad + 1,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: LunaTheme.primary.withOpacity(.10),
+            blurRadius: 14,
+            offset: const Offset(0, -3),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Top border line
+          Container(height: 0.8, color: LunaTheme.primary.withOpacity(.12)),
 
-            // ── Group dots ──────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.only(top: 8, bottom: 1),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // left chevron
-                  _Chevron(
-                    visible: widget.currentGroup > 0,
-                    left: true,
-                    onTap: () => widget.onSwipe(-1),
-                  ),
-                  const SizedBox(width: 6),
-                  ...widget.groups.asMap().entries.map((e) {
-                    final active = e.key == widget.currentGroup;
-                    return GestureDetector(
-                      onTap: () => widget.onDotTap(e.key),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                        margin: const EdgeInsets.symmetric(horizontal: 3),
-                        width: active ? 22 : 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          color: active
-                              ? LunaTheme.primary
-                              : LunaTheme.primary.withOpacity(.22),
-                          borderRadius: BorderRadius.circular(4),
+          // Scrollable row of tabs
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollCtrl,
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              padding: EdgeInsets.only(bottom: bottomPad),
+              itemCount: widget.tabs.length,
+              itemBuilder: (_, i) {
+                final tab = widget.tabs[i];
+                final active = i == widget.selectedIdx;
+                return GestureDetector(
+                  onTap: () => widget.onSelect(i),
+                  behavior: HitTestBehavior.opaque,
+                  child: SizedBox(
+                    width: _itemW,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Icon with animated pill bg
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOut,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: active ? 14 : 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: active
+                                ? LunaTheme.primary.withOpacity(.14)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            tab.emoji,
+                            style: TextStyle(fontSize: active ? 24 : 21),
+                          ),
                         ),
-                      ),
-                    );
-                  }),
-                  const SizedBox(width: 6),
-                  // right chevron
-                  _Chevron(
-                    visible: widget.currentGroup < widget.groups.length - 1,
-                    left: false,
-                    onTap: () => widget.onSwipe(1),
-                  ),
-                ],
-              ),
-            ),
-
-            // ── Tab icons — animate in on group change ──────────────────────
-            Padding(
-              padding: EdgeInsets.fromLTRB(4, 4, 4, bottomPad + 6),
-              child: SlideTransition(
-                position: _slideAnim,
-                child: Row(
-                  children: group.asMap().entries.map((e) {
-                    final active = e.key == widget.currentTab;
-                    return Expanded(
-                      child: GestureDetector(
-                        onTap: () => widget.onTabTap(e.key),
-                        behavior: HitTestBehavior.opaque,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 220),
-                              padding: EdgeInsets.symmetric(
-                                horizontal: active ? 16 : 10,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: active
-                                    ? LunaTheme.primary.withOpacity(.12)
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Text(
-                                e.value.emoji,
-                                style: TextStyle(fontSize: active ? 23 : 20),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            AnimatedDefaultTextStyle(
-                              duration: const Duration(milliseconds: 200),
-                              style: GoogleFonts.nunito(
-                                fontSize: 10.5,
-                                fontWeight: active
-                                    ? FontWeight.w800
-                                    : FontWeight.w500,
-                                color: active
-                                    ? LunaTheme.primary
-                                    : LunaTheme.text3,
-                              ),
-                              child: Text(e.value.label),
-                            ),
-                          ],
+                        const SizedBox(height: 2),
+                        // Label
+                        AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 200),
+                          style: GoogleFonts.nunito(
+                            fontSize: 10,
+                            fontWeight: active ? FontWeight.w800 : FontWeight.w500,
+                            color: active ? LunaTheme.primary : LunaTheme.text3,
+                          ),
+                          child: Text(tab.label, overflow: TextOverflow.ellipsis),
                         ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
-}
-
-class _Chevron extends StatelessWidget {
-  final bool visible, left;
-  final VoidCallback onTap;
-  const _Chevron({required this.visible, required this.left, required this.onTap});
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: AnimatedOpacity(
-      duration: const Duration(milliseconds: 200),
-      opacity: visible ? 0.45 : 0,
-      child: Icon(
-        left ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
-        color: LunaTheme.primary,
-        size: 18,
-      ),
-    ),
-  );
 }
