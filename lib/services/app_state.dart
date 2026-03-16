@@ -240,6 +240,7 @@ class AppState extends ChangeNotifier {
 
   // ── Reminders ─────────────────────────────────────────────────────────────
 
+  Future<bool> checkNotificationPermission() => _notif.hasPermission();
   Future<void> requestNotificationPermission() => _notif.requestPermission();
 
   Future<void> addReminder(AppReminder r) async {

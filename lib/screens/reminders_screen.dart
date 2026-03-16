@@ -92,10 +92,23 @@ class _PermissionBanner extends StatefulWidget {
 
 class _PermissionBannerState extends State<_PermissionBanner> {
   bool _dismissed = false;
+  bool _hasPermission = true; // assume granted until checked
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPermission();
+  }
+
+  Future<void> _checkPermission() async {
+    final granted = await context.read<AppState>().checkNotificationPermission();
+    if (mounted) setState(() => _hasPermission = granted);
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (_dismissed) return const SizedBox.shrink();
+    // Hide if already dismissed OR already has permission
+    if (_dismissed || _hasPermission) return const SizedBox.shrink();
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
