@@ -1,52 +1,22 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:workmanager/workmanager.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tz_data;
 import '../models/models.dart';
-
-// Top-level callback required by WorkManager
-@pragma('vm:entry-point')
-void callbackDispatcher() {
-  Workmanager().executeTask((taskName, inputData) async {
-    try {
-      // Show the notification immediately when WorkManager fires
-      final plugin = FlutterLocalNotificationsPlugin();
-      await plugin.initialize(const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-      ));
-      await plugin.show(
-        inputData?['id'] as int? ?? 0,
-        inputData?['title'] as String? ?? '🌸 Luna',
-        inputData?['body'] as String? ?? 'Reminder de la Luna 💜',
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'luna_reminders',
-            'Luna Reminders',
-            channelDescription: 'Reminders from your Luna companion',
-            importance: Importance.high,
-            priority: Priority.high,
-            playSound: true,
-          ),
-        ),
-      );
-    } catch (e) {
-      // ignore
-    }
-    return Future.value(true);
-  });
-}
 
 class NotificationService {
   final FlutterLocalNotificationsPlugin _p = FlutterLocalNotificationsPlugin();
 
   Future<void> init(String tzName) async {
+    tz_data.initializeTimeZones();
+    try { tz.setLocalLocation(tz.getLocation(tzName)); } catch (_) {}
     await _p.initialize(
       const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       ),
       onDidReceiveNotificationResponse: (_) {},
     );
-    await _p.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+    await _p
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(const AndroidNotificationChannel(
           'luna_reminders',
           'Luna Reminders',
@@ -54,54 +24,42 @@ class NotificationService {
           importance: Importance.high,
           playSound: true,
         ));
-    await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
   }
 
-  // Calculate seconds until next occurrence of HH:mm
-  int _secondsUntil(String time) {
+  tz.TZDateTime _nextInstance(String time, String tzName) {
+    try { tz.setLocalLocation(tz.getLocation(tzName)); } catch (_) {}
     final parts = time.split(':');
     final hour = int.parse(parts[0]);
     final minute = int.parse(parts[1]);
-    final now = DateTime.now();
-    var fire = DateTime(now.year, now.month, now.day, hour, minute);
+    final now = tz.TZDateTime.now(tz.local);
+    var fire = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
     if (!fire.isAfter(now)) fire = fire.add(const Duration(days: 1));
-    return fire.difference(now).inSeconds;
+    return fire;
   }
 
   Future<void> syncReminders(List<AppReminder> reminders, String tzName,
       {String emoji = '🌸', String name = 'Luna'}) async {
-    // Cancel all existing WorkManager tasks
-    await Workmanager().cancelAll();
-
+    await _p.cancelAll();
     for (final r in reminders) {
       if (!r.enabled) continue;
-
-      final delay = _secondsUntil(r.time);
-      final title = '$emoji $name';
-      final body = r.title;
-
-      // Schedule with WorkManager - registers a periodic daily task
-      // with an initial delay calculated to fire at the right time
-      await Workmanager().registerPeriodicTask(
-        'reminder_${r.id}',
-        'luna_reminder',
-        frequency: const Duration(hours: 24),
-        initialDelay: Duration(seconds: delay),
-        inputData: {
-          'id': r.id.hashCode,
-          'title': title,
-          'body': body,
-        },
-        constraints: Constraints(
-          networkType: NetworkType.not_required,
-          requiresBatteryNotLow: false,
-          requiresCharging: false,
-          requiresDeviceIdle: false,
-          requiresStorageNotLow: false,
+      await _p.zonedSchedule(
+        r.id.hashCode,
+        '$emoji $name',
+        r.title,
+        _nextInstance(r.time, tzName),
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            'luna_reminders',
+            'Luna Reminders',
+            channelDescription: 'Reminders from your Luna companion',
+            importance: Importance.high,
+            priority: Priority.high,
+            playSound: true,
+            largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          ),
         ),
-        existingWorkPolicy: ExistingWorkPolicy.replace,
-        backoffPolicy: BackoffPolicy.linear,
-        backoffPolicyDelay: const Duration(minutes: 1),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
       );
     }
   }
@@ -124,6 +82,10 @@ class NotificationService {
     );
   }
 
+  Future<void> cancelOne(int id) async {
+    await _p.cancel(id.hashCode);
+  }
+
   Future<bool> hasPermission(String tzName) async {
     final android = _p.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     return await android?.areNotificationsEnabled() ?? true;
@@ -134,18 +96,10 @@ class NotificationService {
     await android?.requestNotificationsPermission();
   }
 
-  // Debug: returns info about next scheduled reminder
   Future<String> debugSchedule(AppReminder r, String tzName) async {
-    final delay = _secondsUntil(r.time);
-    final hours = delay ~/ 3600;
-    final mins = (delay % 3600) ~/ 60;
-    final now = DateTime.now();
-    final fire = now.add(Duration(seconds: delay));
-    return 'WorkManager task\nnow=$now\nfire=$fire\nin ${hours}h ${mins}m';
-  }
-
-  Future<void> cancelOne(int id) async {
-    await Workmanager().cancelByUniqueName('reminder_$id');
-    await _p.cancel(id.hashCode);
+    final fire = _nextInstance(r.time, tzName);
+    final now = tz.TZDateTime.now(tz.local);
+    final diff = fire.difference(now);
+    return 'tz=${tz.local.name}\nnow=$now\nfire=$fire\nin ${diff.inHours}h ${diff.inMinutes % 60}m';
   }
 }
