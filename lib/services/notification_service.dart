@@ -30,20 +30,33 @@ class NotificationService {
   final _p = FlutterLocalNotificationsPlugin();
   bool _ready = false;
 
-  // Call this FIRST with the user's chosen timezone name e.g. 'Europe/Bucharest'
   Future<void> init(String tzName) async {
+    // Always re-set the timezone (even if _ready=true) because tz.local resets between app launches
     try {
       tz_data.initializeTimeZones();
       tz.setLocalLocation(tz.getLocation(tzName));
-    } catch (_) {
+    } catch (e) {
+      print('[notif] tz init failed for $tzName: $e, falling back to UTC');
       try { tz.setLocalLocation(tz.UTC); } catch (_) {}
     }
     if (_ready) return;
-    try {
-      await _p.initialize(const InitializationSettings(
+    await _p.initialize(
+      const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-      ));
-    } catch (_) {}
+      ),
+      // Show notifications even when app is in foreground
+      onDidReceiveNotificationResponse: (_) {},
+    );
+    // Enable foreground notifications on Android
+    await _p
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(const AndroidNotificationChannel(
+          'luna_reminders',
+          'Luna Reminders',
+          description: 'Reminders from your Luna companion',
+          importance: Importance.high,
+          playSound: true,
+        ));
     _ready = true;
   }
 
@@ -80,12 +93,17 @@ class NotificationService {
   Future<void> syncReminders(List<AppReminder> reminders, String tzName, {
     String emoji = '🌙', String name = 'Luna',
   }) async {
-    await init(tzName);
-    try { await _p.cancelAll(); } catch (_) {}
+    await init(tzName);  // sets tz.local correctly
+    await _p.cancelAll();
+
     for (final r in reminders) {
-      if (r.enabled && r.id != null) {
-        try { await _schedule(r, emoji, name); }
-        catch (e) { print('[notif] ${r.title}: $e'); }
+      if (!r.enabled || r.id == null) continue;
+      try {
+        await _schedule(r, emoji, name);
+        print('[notif] ✓ scheduled "${r.title}" @ ${r.time} (${r.type})');
+      } catch (e) {
+        print('[notif] ✗ failed "${r.title}": $e');
+        rethrow;
       }
     }
   }
@@ -108,10 +126,12 @@ class NotificationService {
       styleInformation: BigTextStyleInformation(body),
     ));
 
-    // tz.local is now set correctly via init(tzName)
+    // Build fire time in the user's local timezone (tz.local set in init())
     final now  = tz.TZDateTime.now(tz.local);
     var   fire = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
     if (!fire.isAfter(now)) fire = fire.add(const Duration(days: 1));
+
+    print('[notif] scheduling at $fire (now=$now, tz=${tz.local.name})');
 
     switch (r.type) {
       case 'daily':
@@ -133,7 +153,22 @@ class NotificationService {
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         );
-        break;
     }
   }
+
+  // Returns debug info about what would be scheduled
+  Future<String> debugSchedule(AppReminder r, String tzName) async {
+    await init(tzName);
+    final parts  = r.time.split(':');
+    final hour   = int.parse(parts[0]);
+    final minute = int.parse(parts[1]);
+    final now    = tz.TZDateTime.now(tz.local);
+    var   fire   = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    if (!fire.isAfter(now)) fire = fire.add(const Duration(days: 1));
+    final diff   = fire.difference(now);
+    final hours  = diff.inHours;
+    final mins   = diff.inMinutes % 60;
+    return 'tz=${tz.local.name}\nnow=$now\nfire=$fire\nin ${hours}h ${mins}m';
+  }
+
 }

@@ -86,14 +86,27 @@ class RemindersScreen extends StatelessWidget {
 
   void _sendTestNotification(BuildContext context) async {
     final state = context.read<AppState>();
-    await NotificationService().sendTest(
-      state.timezone,
-      emoji: state.companionEmoji,
-      name: state.companionName,
-    );
+    // Show debug info for all active reminders
+    final svc = NotificationService();
+    final buf = StringBuffer();
+    for (final r in state.reminders.where((r) => r.enabled)) {
+      final info = await svc.debugSchedule(r, state.timezone);
+      buf.writeln('📌 ${r.title} @ ${r.time}\n$info\n');
+    }
+    await svc.sendTest(state.timezone, emoji: state.companionEmoji, name: state.companionName);
+    if (context.mounted) {
+      showDialog(context: context, builder: (_) => AlertDialog(
+        title: Text('🔔 Debug notificări', style: GoogleFonts.nunito(fontWeight: FontWeight.w900)),
+        content: SingleChildScrollView(child: Text(
+          buf.isEmpty ? 'Niciun reminder activ.' : buf.toString(),
+          style: GoogleFonts.nunito(fontSize: 12),
+        )),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+      ));
+    }
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Notificare de test trimisă! Verifică bara de sus 🔔',
+        content: Text('Test trimis! Vezi dialogul de debug 🔔',
             style: GoogleFonts.nunito(fontWeight: FontWeight.w700)),
         backgroundColor: LunaTheme.primary,
         duration: const Duration(seconds: 3),

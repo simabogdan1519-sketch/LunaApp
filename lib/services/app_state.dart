@@ -88,12 +88,24 @@ class AppState extends ChangeNotifier {
 
   // ── Init ──────────────────────────────────────────────────────────────────
 
-  Future<void> init() async { await _loadPrefs(); await loadAll(); }
+  Future<void> init() async { await _loadPrefs(); await loadAll(); await _syncNotifications(); }
+
+  String lastNotifError = '';
+  String lastNotifLog = '';
 
   Future<void> _syncNotifications() async {
     try {
+      lastNotifLog = 'Syncing ${reminders.length} reminders, tz=$_timezone...';
+      notifyListeners();
       await _notif.syncReminders(reminders, _timezone, emoji: _companionEmoji, name: _companionName);
-    } catch (_) {} // silently fail if permissions not granted
+      lastNotifLog = 'OK — ${reminders.where((r)=>r.enabled).length} active reminders scheduled';
+      lastNotifError = '';
+    } catch (e, st) {
+      lastNotifError = e.toString();
+      lastNotifLog = 'ERROR: $e';
+      print('[Luna notif ERROR] $e\n$st');
+    }
+    notifyListeners();
   }
 
   Future<void> loadAll() async {
