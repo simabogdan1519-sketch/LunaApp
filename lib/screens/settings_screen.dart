@@ -20,6 +20,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   final List<String> _languages = ['English', 'Română', 'Français', 'Deutsch', 'Español', 'Italiano', 'Português'];
+  // Common timezones grouped by region
+  final List<Map<String, String>> _timezones = [
+    // Europe
+    {'tz': 'Europe/Bucharest',  'label': '🇷🇴 România (EET)'},
+    {'tz': 'Europe/London',     'label': '🇬🇧 UK (GMT/BST)'},
+    {'tz': 'Europe/Paris',      'label': '🇫🇷 France (CET)'},
+    {'tz': 'Europe/Berlin',     'label': '🇩🇪 Germany (CET)'},
+    {'tz': 'Europe/Madrid',     'label': '🇪🇸 Spain (CET)'},
+    {'tz': 'Europe/Rome',       'label': '🇮🇹 Italy (CET)'},
+    {'tz': 'Europe/Athens',     'label': '🇬🇷 Greece (EET)'},
+    {'tz': 'Europe/Kiev',       'label': '🇺🇦 Ukraine (EET)'},
+    {'tz': 'Europe/Moscow',     'label': '🇷🇺 Moscow (MSK)'},
+    // Americas
+    {'tz': 'America/New_York',  'label': '🇺🇸 New York (EST)'},
+    {'tz': 'America/Chicago',   'label': '🇺🇸 Chicago (CST)'},
+    {'tz': 'America/Denver',    'label': '🇺🇸 Denver (MST)'},
+    {'tz': 'America/Los_Angeles','label': '🇺🇸 Los Angeles (PST)'},
+    {'tz': 'America/Sao_Paulo', 'label': '🇧🇷 São Paulo (BRT)'},
+    // Asia / Pacific
+    {'tz': 'Asia/Dubai',        'label': '🇦🇪 Dubai (GST)'},
+    {'tz': 'Asia/Kolkata',      'label': '🇮🇳 India (IST)'},
+    {'tz': 'Asia/Singapore',    'label': '🇸🇬 Singapore (SGT)'},
+    {'tz': 'Asia/Tokyo',        'label': '🇯🇵 Tokyo (JST)'},
+    {'tz': 'Australia/Sydney',  'label': '🇦🇺 Sydney (AEDT)'},
+  ];
+
   final List<Map<String, String>> _companions = [
     {'e': '🐱', 'n': 'Luna'}, {'e': '🦊', 'n': 'Foxy'}, {'e': '🐰', 'n': 'Bunny'},
     {'e': '🐻', 'n': 'Bear'}, {'e': '🦄', 'n': 'Star'}, {'e': '🐼', 'n': 'Panda'},
@@ -135,6 +161,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
               )),
               const SizedBox(height: 16),
               // Companion
+              const SizedBox(height: 16),
+              _SectionTitle('🕐 Timezone (for notifications)'),
+              _Card(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Selectează timezone-ul tău pentru ca notificările să vină la ora corectă',
+                    style: GoogleFonts.nunito(color: LunaTheme.text2, fontSize: 12),
+                  ),
+                  const SizedBox(height: 10),
+                  ..._timezones.map((t) {
+                    final sel = state.timezone == t['tz'];
+                    return GestureDetector(
+                      onTap: () { state.timezone = t['tz']!; setState(() {}); },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 120),
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: sel ? LunaTheme.primary : LunaTheme.surfaceV,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(children: [
+                          Expanded(child: Text(t['label']!, style: GoogleFonts.nunito(
+                            fontWeight: FontWeight.w700,
+                            color: sel ? Colors.white : LunaTheme.text2,
+                            fontSize: 13,
+                          ))),
+                          if (sel) const Icon(Icons.check, color: Colors.white, size: 16),
+                        ]),
+                      ),
+                    );
+                  }),
+                ],
+              )),
               _SectionTitle('🐾 My companion'),
               _Card(child: Wrap(
                 spacing: 10, runSpacing: 10,

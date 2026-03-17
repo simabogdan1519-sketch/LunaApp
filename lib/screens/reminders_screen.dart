@@ -89,6 +89,7 @@ class RemindersScreen extends StatelessWidget {
     await NotificationService().sendTest(
       companionEmoji: state.companionEmoji,
       companionName: state.companionName,
+      timezone: state.timezone,
     );
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
