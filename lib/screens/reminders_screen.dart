@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/app_state.dart';
@@ -140,13 +139,7 @@ class _PermissionBannerState extends State<_PermissionBanner> {
 
   Future<void> _check() async {
     final notif = await context.read<AppState>().checkNotificationPermission();
-    bool exact = true;
-    try {
-      final android = FlutterLocalNotificationsPlugin()
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-      exact = await android?.canScheduleExactNotifications() ?? true;
-    } catch (_) {}
-    if (mounted) setState(() { _hasNotifPermission = notif; _hasExactAlarm = exact; });
+    if (mounted) setState(() { _hasNotifPermission = notif; _hasExactAlarm = true; });
   }
 
   @override
@@ -165,25 +158,7 @@ class _PermissionBannerState extends State<_PermissionBanner> {
         },
       );
     }
-    // Banner 2: no exact alarm permission
-    if (!_hasExactAlarm) {
-      return _Banner(
-        emoji: '⏰',
-        title: 'Permite alarme exacte',
-        body: 'Fără asta notificările nu vin la ora exactă. Setări → Aplicații → LunaApp → Alarme și memento-uri → Activează',
-        buttonLabel: 'Deschide',
-        color: Colors.orange,
-        onTap: () async {
-          try {
-            final android = FlutterLocalNotificationsPlugin()
-                .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-            await android?.requestExactAlarmsPermission();
-          } catch (_) {}
-          await Future.delayed(const Duration(seconds: 1));
-          _check();
-        },
-      );
-    }
+
     return const SizedBox.shrink();
   }
 }
