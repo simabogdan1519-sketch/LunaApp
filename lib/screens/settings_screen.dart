@@ -20,6 +20,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   final List<String> _languages = ['English', 'Română', 'Français', 'Deutsch', 'Español', 'Italiano', 'Português'];
+  final List<Map<String, String>> _timezones = [
+    {'v': 'Europe/Bucharest', 'l': '🇷🇴 România — Europe/Bucharest'},
+    {'v': 'Europe/London',    'l': '🇬🇧 UK — Europe/London'},
+    {'v': 'Europe/Paris',     'l': '🇫🇷 France/Belgium — Europe/Paris'},
+    {'v': 'Europe/Berlin',    'l': '🇩🇪 Germany/Austria — Europe/Berlin'},
+    {'v': 'Europe/Madrid',    'l': '🇪🇸 Spain — Europe/Madrid'},
+    {'v': 'Europe/Rome',      'l': '🇮🇹 Italy — Europe/Rome'},
+    {'v': 'Europe/Athens',    'l': '🇬🇷 Greece — Europe/Athens'},
+    {'v': 'Europe/Kiev',      'l': '🇺🇦 Ukraine — Europe/Kiev'},
+    {'v': 'Europe/Moscow',    'l': '🇷🇺 Russia — Europe/Moscow'},
+    {'v': 'America/New_York', 'l': '🇺🇸 Eastern US — America/New_York'},
+    {'v': 'America/Chicago',  'l': '🇺🇸 Central US — America/Chicago'},
+    {'v': 'America/Los_Angeles','l':'🇺🇸 Pacific US — America/Los_Angeles'},
+    {'v': 'America/Sao_Paulo','l': '🇧🇷 Brazil — America/Sao_Paulo'},
+    {'v': 'Asia/Dubai',       'l': '🇦🇪 Dubai — Asia/Dubai'},
+    {'v': 'Asia/Kolkata',     'l': '🇮🇳 India — Asia/Kolkata'},
+    {'v': 'Asia/Singapore',   'l': '🇸🇬 Singapore — Asia/Singapore'},
+    {'v': 'Asia/Tokyo',       'l': '🇯🇵 Japan — Asia/Tokyo'},
+    {'v': 'Australia/Sydney', 'l': '🇦🇺 Australia — Australia/Sydney'},
+  ];
+
   final List<Map<String, String>> _companions = [
     {'e': '🐱', 'n': 'Luna'}, {'e': '🦊', 'n': 'Foxy'}, {'e': '🐰', 'n': 'Bunny'},
     {'e': '🐻', 'n': 'Bear'}, {'e': '🦄', 'n': 'Star'}, {'e': '🐼', 'n': 'Panda'},
@@ -135,6 +156,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
               )),
               const SizedBox(height: 16),
               // Companion
+              const SizedBox(height: 16),
+              _SectionTitle('🕐 Timezone pentru notificări'),
+              _Card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Alege timezone-ul tău ca notificările să vină la ora corectă.',
+                    style: GoogleFonts.nunito(color: LunaTheme.text2, fontSize: 12)),
+                const SizedBox(height: 10),
+                DropdownButton<String>(
+                  value: state.timezone,
+                  isExpanded: true,
+                  underline: const SizedBox(),
+                  style: GoogleFonts.nunito(color: LunaTheme.text, fontWeight: FontWeight.w700, fontSize: 13),
+                  items: _timezones.map((t) => DropdownMenuItem(
+                    value: t['v'],
+                    child: Text(t['l']!),
+                  )).toList(),
+                  onChanged: (v) { if (v != null) state.setTimezone(v); },
+                ),
+              ])),
               _SectionTitle('🐾 My companion'),
               _Card(child: Wrap(
                 spacing: 10, runSpacing: 10,

@@ -14,6 +14,7 @@ class AppState extends ChangeNotifier {
   final _notif = NotificationService();
   int _periodLength = 5;
   String _language = 'English';
+  String _timezone = 'Europe/Bucharest';
   String _companionEmoji = '🐱';
   String _companionName = 'Luna';
   bool _contraEnabled = false;
@@ -23,6 +24,7 @@ class AppState extends ChangeNotifier {
   int get cycleLength => _cycleLength;
   int get periodLength => _periodLength;
   String get language => _language;
+  String get timezone => _timezone;
   String get companionEmoji => _companionEmoji;
   String get companionName => _companionName;
   bool get contraEnabled => _contraEnabled;
@@ -32,6 +34,7 @@ class AppState extends ChangeNotifier {
   set cycleLength(int v) { _cycleLength = v; notifyListeners(); }
   set periodLength(int v) { _periodLength = v; notifyListeners(); }
   set language(String v) { _language = v; notifyListeners(); }
+  void setTimezone(String v) { _timezone = v; savePrefs(); notifyListeners(); _syncNotifications(); }
   set companionEmoji(String v) { _companionEmoji = v; notifyListeners(); }
   set companionName(String v) { _companionName = v; notifyListeners(); }
   set contraEnabled(bool v) { _contraEnabled = v; notifyListeners(); }
@@ -89,7 +92,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> _syncNotifications() async {
     try {
-      await _notif.syncReminders(reminders, companionEmoji: _companionEmoji, companionName: _companionName);
+      await _notif.syncReminders(reminders, _timezone, emoji: _companionEmoji, name: _companionName);
     } catch (_) {} // silently fail if permissions not granted
   }
 
@@ -111,6 +114,7 @@ class AppState extends ChangeNotifier {
     _cycleLength = p.getInt('cycleLength') ?? 28;
     _periodLength = p.getInt('periodLength') ?? 5;
     _language = p.getString('language') ?? 'English';
+    _timezone = p.getString('timezone') ?? 'Europe/Bucharest';
     _companionEmoji = p.getString('companionEmoji') ?? '🐱';
     _companionName = p.getString('companionName') ?? 'Luna';
     _contraEnabled = p.getBool('contraEnabled') ?? false;
@@ -124,6 +128,7 @@ class AppState extends ChangeNotifier {
     await p.setInt('cycleLength', _cycleLength);
     await p.setInt('periodLength', _periodLength);
     await p.setString('language', _language);
+    await p.setString('timezone', _timezone);
     await p.setString('companionEmoji', _companionEmoji);
     await p.setString('companionName', _companionName);
     await p.setBool('contraEnabled', _contraEnabled);
@@ -240,8 +245,8 @@ class AppState extends ChangeNotifier {
 
   // ── Reminders ─────────────────────────────────────────────────────────────
 
-  Future<bool> checkNotificationPermission() => _notif.hasPermission();
-  Future<void> requestNotificationPermission() => _notif.requestPermission();
+  Future<bool> checkNotificationPermission() => _notif.hasPermission(_timezone);
+  Future<void> requestNotificationPermission() => _notif.requestPermission(_timezone);
 
   Future<void> addReminder(AppReminder r) async {
     await _db.insertReminder(r);

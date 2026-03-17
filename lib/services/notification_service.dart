@@ -3,11 +3,10 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import '../models/models.dart';
 
-// Messages
 const _pill    = ['💊 Nu uita de pastilă! 🌸', '💊 E ora pilulei! 💜', '💊 Pastila de azi 🌸', '💊 Pastilă time! ✨'];
 const _water   = ['💧 Ai băut suficientă apă? 🌸', '💧 Un pahar de apă 💧', '💧 2.5L pe zi 🌙', '💧 Hidratare! ✨'];
 const _sleep   = ['🌙 Pregătește-te de somn 💜', '🌙 Odihnește-te bine ✨', '😴 Ora de somn! 🌙', '🌙 Noapte bună! 💜'];
-const _move    = ['🏃‍♀️ Mișcare azi? 💪', '💜 15 min de mers îți fac bine 🌸', '💪 Un pic de sport?', '🏃‍♀️ Te vei simți mai bine! 💪'];
+const _move    = ['🏃‍♀️ Mișcare azi? 💪', '💜 15 min îți fac bine 🌸', '💪 Un pic de sport?', '🏃‍♀️ Te vei simți mai bine! 💪'];
 const _morning = ['☀️ Bună dimineața! 💜', '🌸 O nouă zi! 💜', '✨ Cum te simți azi? 📝', '☀️ Corpul tău merită atenție 💜'];
 const _evening = ['🌙 Loghează-ți ziua 💜', '🌸 Notează simptomele!', '🌙 Un moment pentru tine ✨', '💜 Cum a fost ziua?'];
 const _general = ['💜 Ai grijă de tine!', '🌸 Tu ești prioritatea!', '💜 Ascultă-ți corpul!', '🌙 Sănătatea ta contează ✨'];
@@ -31,19 +30,15 @@ class NotificationService {
   final _p = FlutterLocalNotificationsPlugin();
   bool _ready = false;
 
-  static const _det = NotificationDetails(
-    android: AndroidNotificationDetails(
-      'luna_reminders', 'Luna Reminders',
-      channelDescription: 'Reminders from your Luna companion',
-      importance: Importance.high,
-      priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
-    ),
-  );
-
-  Future<void> init() async {
+  // Call this FIRST with the user's chosen timezone name e.g. 'Europe/Bucharest'
+  Future<void> init(String tzName) async {
+    try {
+      tz_data.initializeTimeZones();
+      tz.setLocalLocation(tz.getLocation(tzName));
+    } catch (_) {
+      try { tz.setLocalLocation(tz.UTC); } catch (_) {}
+    }
     if (_ready) return;
-    try { tz_data.initializeTimeZones(); tz.setLocalLocation(tz.UTC); } catch (_) {}
     try {
       await _p.initialize(const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
@@ -52,39 +47,44 @@ class NotificationService {
     _ready = true;
   }
 
-  Future<bool> hasPermission() async {
+  Future<bool> hasPermission(String tzName) async {
     try {
-      await init();
+      await init(tzName);
       return await _p
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.areNotificationsEnabled() ?? true;
     } catch (_) { return true; }
   }
 
-  Future<void> requestPermission() async {
+  Future<void> requestPermission(String tzName) async {
     try {
-      await init();
+      await init(tzName);
       await _p
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.requestNotificationsPermission();
     } catch (_) {}
   }
 
-  // WORKS: immediate show
-  Future<void> sendTest({String companionEmoji = '🌙', String companionName = 'Luna'}) async {
-    await init();
-    await _p.show(9999, '$companionEmoji $companionName',
-      '🌸 Notificările funcționează! Vei primi reminder-ele la timp 💜', _det);
+  Future<void> sendTest(String tzName, {String emoji = '🌙', String name = 'Luna'}) async {
+    await init(tzName);
+    await _p.show(9999, '$emoji $name',
+      '🌸 Notificările funcționează! Vei primi reminder-ele la timp 💜',
+      const NotificationDetails(android: AndroidNotificationDetails(
+        'luna_reminders', 'Luna Reminders',
+        importance: Importance.high, priority: Priority.high,
+        icon: '@mipmap/ic_launcher',
+      )),
+    );
   }
 
-  Future<void> syncReminders(List<AppReminder> reminders, {
-    String companionEmoji = '🌙', String companionName = 'Luna', String timezone = '',
+  Future<void> syncReminders(List<AppReminder> reminders, String tzName, {
+    String emoji = '🌙', String name = 'Luna',
   }) async {
-    await init();
+    await init(tzName);
     try { await _p.cancelAll(); } catch (_) {}
     for (final r in reminders) {
       if (r.enabled && r.id != null) {
-        try { await _scheduleReminder(r, companionEmoji, companionName); }
+        try { await _schedule(r, emoji, name); }
         catch (e) { print('[notif] ${r.title}: $e'); }
       }
     }
@@ -94,11 +94,10 @@ class NotificationService {
     try { await _p.cancel(id); } catch (_) {}
   }
 
-  Future<void> _scheduleReminder(AppReminder r, String emoji, String name) async {
+  Future<void> _schedule(AppReminder r, String emoji, String name) async {
     final parts  = r.time.split(':');
     final hour   = int.parse(parts[0]);
     final minute = int.parse(parts[1]);
-    final title  = '$emoji $name';
     final body   = _msg(r);
 
     final det = NotificationDetails(android: AndroidNotificationDetails(
@@ -109,41 +108,30 @@ class NotificationService {
       styleInformation: BigTextStyleInformation(body),
     ));
 
-    // Compute next fire time entirely in Dart - no tz library math at all
-    // We use UTC internally: the device local time "hour:minute" maps to a UTC ms value
-    final now    = DateTime.now();                                          // local
-    var   next   = DateTime(now.year, now.month, now.day, hour, minute);   // local
-    if (!next.isAfter(now)) next = next.add(const Duration(days: 1));
-
-    // Convert local DateTime to UTC ms - this is exact regardless of timezone
-    final utcMs  = next.toUtc().millisecondsSinceEpoch;
-
-    // Build a TZDateTime in UTC at the exact same instant
-    // Because tz.local = UTC and we pass utcMs, the fire time is correct
-    final tzFire = tz.TZDateTime.fromMillisecondsSinceEpoch(tz.UTC, utcMs);
+    // tz.local is now set correctly via init(tzName)
+    final now  = tz.TZDateTime.now(tz.local);
+    var   fire = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    if (!fire.isAfter(now)) fire = fire.add(const Duration(days: 1));
 
     switch (r.type) {
       case 'daily':
-        await _p.zonedSchedule(r.id!, title, body, tzFire, det,
+        await _p.zonedSchedule(r.id!, '$emoji $name', body, fire, det,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
+          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: DateTimeComponents.time,
         );
         break;
       case 'weekly':
-        await _p.zonedSchedule(r.id!, title, body, tzFire, det,
+        await _p.zonedSchedule(r.id!, '$emoji $name', body, fire, det,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
+          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
         );
         break;
       default:
-        await _p.zonedSchedule(r.id!, title, body, tzFire, det,
+        await _p.zonedSchedule(r.id!, '$emoji $name', body, fire, det,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
+          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         );
         break;
     }
