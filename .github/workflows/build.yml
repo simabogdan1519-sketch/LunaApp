@@ -1,0 +1,138 @@
+name: Build Luna APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.6'
+          channel: 'stable'
+
+      - name: Create fresh Flutter project
+        run: flutter create --org com.luna --project-name luna /tmp/luna_fresh
+
+      - name: Fix Android SDK versions
+        run: |
+          sed -i 's/minSdk = .*/minSdk = 24/' /tmp/luna_fresh/android/app/build.gradle
+          sed -i 's/minSdkVersion .*/minSdkVersion 24/' /tmp/luna_fresh/android/app/build.gradle
+          sed -i 's/targetSdk = .*/targetSdk = 34/' /tmp/luna_fresh/android/app/build.gradle
+          sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' /tmp/luna_fresh/android/app/build.gradle
+
+      - name: Set app name to LunaApp
+        run: |
+          sed -i 's/android:label="[^"]*"/android:label="LunaApp"/' \
+            /tmp/luna_fresh/android/app/src/main/AndroidManifest.xml
+
+      - name: Copy source code
+        run: |
+          cp -r lib/. /tmp/luna_fresh/lib/
+          cp pubspec.yaml /tmp/luna_fresh/pubspec.yaml
+
+      - name: Add notification permissions to AndroidManifest
+        run: |
+          MANIFEST=/tmp/luna_fresh/android/app/src/main/AndroidManifest.xml
+          
+          # Inject all permissions before <application> tag
+          sed -i 's|<application|<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>\n    <uses-permission android:name="android.permission.VIBRATE"/>\n    <uses-permission android:name="android.permission.WAKE_LOCK"/>\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>\n    <application|' $MANIFEST
+          
+          # Add boot + alarm receivers inside <application>
+          sed -i 's|</application>|        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">\n            <intent-filter>\n                <action android:name="android.intent.action.BOOT_COMPLETED"/>\n                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>\n                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>\n            </intent-filter>\n        </receiver>\n        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver"/>\n        <service android:name="androidx.work.impl.background.systemjob.SystemJobService" android:exported="true" android:permission="android.permission.BIND_JOB_SERVICE"/>\n    </application>|' $MANIFEST
+          
+          echo "=== AndroidManifest permissions ===" && grep "uses-permission" $MANIFEST
+
+      - name: Verify app icon exists for notifications
+        run: |
+          # Notifications use @mipmap/ic_launcher (app icon) - no custom drawable needed
+          echo "Using app launcher icon for notifications - no extra steps needed"
+          ls /tmp/luna_fresh/android/app/src/main/res/mipmap-hdpi/
+
+      - name: Copy app icons
+        run: |
+          for density in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+            if [ -d "icons/$density" ]; then
+              cp icons/$density/ic_launcher.png \
+                /tmp/luna_fresh/android/app/src/main/res/$density/ic_launcher.png
+              cp icons/$density/ic_launcher_round.png \
+                /tmp/luna_fresh/android/app/src/main/res/$density/ic_launcher_round.png
+            fi
+          done
+
+      - name: Generate keystore (if not in secrets)
+        run: |
+          if [ -z "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "No keystore secret found — generating a debug keystore"
+            keytool -genkey -v \
+              -keystore /tmp/luna.keystore \
+              -alias luna \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass lunapass \
+              -keypass lunapass \
+              -dname "CN=LunaApp, OU=Dev, O=Luna, L=Bucharest, S=RO, C=RO"
+          else
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > /tmp/luna.keystore
+          fi
+
+      - name: Configure signing in build.gradle
+        run: |
+          cat >> /tmp/luna_fresh/android/app/build.gradle << 'GRADLE'
+
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file("/tmp/luna.keystore")
+                      storePassword System.getenv("STORE_PASS") ?: "lunapass"
+                      keyAlias "luna"
+                      keyPassword System.getenv("KEY_PASS") ?: "lunapass"
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                  }
+              }
+          }
+          GRADLE
+
+      - name: Get dependencies
+        working-directory: /tmp/luna_fresh
+        run: flutter pub get
+
+      - name: Build APK (release, signed)
+        working-directory: /tmp/luna_fresh
+        run: flutter build apk --release
+
+      - name: Build App Bundle (for Play Store)
+        working-directory: /tmp/luna_fresh
+        run: flutter build appbundle --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: luna-apk
+          path: /tmp/luna_fresh/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+
+      - name: Upload AAB (Play Store)
+        uses: actions/upload-artifact@v4
+        with:
+          name: luna-aab
+          path: /tmp/luna_fresh/build/app/outputs/bundle/release/app-release.aab
+          retention-days: 30
