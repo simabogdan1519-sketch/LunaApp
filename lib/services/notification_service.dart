@@ -143,4 +143,9 @@ class NotificationService {
     final fire = now.add(Duration(seconds: delay));
     return 'WorkManager task\nnow=$now\nfire=$fire\nin ${hours}h ${mins}m';
   }
+
+  Future<void> cancelOne(int id) async {
+    await Workmanager().cancelByUniqueName('reminder_$id');
+    await _p.cancel(id.hashCode);
+  }
 }
