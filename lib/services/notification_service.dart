@@ -3,110 +3,127 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import '../models/models.dart';
 
-// ── Mesaje companion ──────────────────────────────────────────────────────────
-const _morningMessages = [
-  '☀️ Bună dimineața! Cum te simți azi? Ia un moment pentru tine 💜',
-  '🌸 O nouă zi, un nou început! Nu uita să ai grijă de tine 💜',
-  '✨ Dimineața e perfectă pentru a-ți nota cum te simți 📝',
-  '☀️ Corpul tău merită atenție azi — eu sunt aici dacă ai nevoie 💜',
-];
-const _eveningMessages = [
-  '🌙 Ia 2 minute să îți loghezi ziua — tu și corpul tău merități asta 💜',
-  '🌸 Cum a fost ziua? Nu uita să îți notezi simptomele!',
-  '🌙 Înainte de somn, ia un moment pentru tine ✨',
-  '💜 E ora să îți oferi un moment de grijă. Deschide Luna!',
-];
-const _pillMessages = [
+// ── Mesaje ────────────────────────────────────────────────────────────────────
+const _pill = [
   '💊 Nu uita de pastilă! Sănătatea ta contează 🌸',
   '💊 E ora pilulei! Consecvența e cheia 💜',
-  '🌸 Reminder prietenos: pastila ta de azi! Nu o sări 💊',
+  '💊 Pastila de azi — nu o sări! 🌸',
   '💊 Pastilă time! Îți doresc o zi frumoasă ✨',
 ];
-const _waterMessages = [
-  '💧 Ai băut suficientă apă azi? Hidratarea îți susține echilibrul hormonal!',
+const _water = [
+  '💧 Ai băut suficientă apă azi? Hidratarea contează!',
   '💧 Un pahar mare de apă te ajută mai mult decât crezi 🌸',
-  '🌙 Corpul tău are nevoie de apă! 2.5L pe zi 💧',
-  '💧 Hidratare reminder! Tu și corpul tău merități apă curată ✨',
+  '💧 2.5L pe zi pentru hormoni fericiți 🌙',
+  '💧 Hidratare reminder! Tu meriti apă curată ✨',
 ];
-const _sleepMessages = [
-  '🌙 E timpul să te pregătești de somn. Somnul bun = hormoni fericiți 💜',
-  '🌙 Pregătește-te de odihnă ✨ Corpul tău se regenerează noaptea!',
-  '😴 Ora de somn se apropie! Pune telefonul jos și odihnește-te bine',
-  '🌙 Noapte bună! Corpul tău lucrează din greu — lasă-l să se odihnească 💜',
+const _sleep = [
+  '🌙 Pregătește-te de somn. Somnul bun = hormoni fericiți 💜',
+  '🌙 Odihnește-te bine ✨ Corpul tău se regenerează noaptea!',
+  '😴 Ora de somn! Pune telefonul jos 🌙',
+  '🌙 Noapte bună! Lasă corpul să se odihnească 💜',
 ];
-const _exerciseMessages = [
-  '🏃‍♀️ Mișcarea reduce crampele și îmbunătățește starea de spirit! Hai!',
-  '💜 Chiar și 15 minute de mers îți fac bine hormonilor 🌸',
-  '💪 Corpul tău e puternic! Un pic de mișcare azi?',
-  '🏃‍♀️ Nu uita de exercițiile de azi — te vei simți mult mai bine după!',
+const _exercise = [
+  '🏃‍♀️ Mișcarea reduce crampele! Hai, o poți face!',
+  '💜 Chiar și 15 minute de mers îți fac bine 🌸',
+  '💪 Un pic de mișcare azi?',
+  '🏃‍♀️ Te vei simți mult mai bine după! 💪',
 ];
-const _generalMessages = [
+const _morning = [
+  '☀️ Bună dimineața! Cum te simți azi? 💜',
+  '🌸 O nouă zi! Nu uita să ai grijă de tine 💜',
+  '✨ Dimineața e perfectă pentru a-ți nota cum te simți 📝',
+  '☀️ Corpul tău merită atenție azi 💜',
+];
+const _evening = [
+  '🌙 Ia 2 minute să îți loghezi ziua 💜',
+  '🌸 Cum a fost ziua? Nu uita să îți notezi simptomele!',
+  '🌙 Înainte de somn, ia un moment pentru tine ✨',
+  '💜 E ora să îți oferi un moment de grijă!',
+];
+const _general = [
   '💜 Nu uita să ai grijă de tine azi!',
-  '🌸 Reminder de la Luna: tu ești prioritatea! Cum te simți?',
-  '💜 Corpul tău îți vorbește — ascultă-l! Deschide Luna să loghezi.',
-  '🌙 Un reminder prietenos că sănătatea ta contează. Eu sunt aici! ✨',
+  '🌸 Tu ești prioritatea! Cum te simți?',
+  '💜 Corpul tău îți vorbește — ascultă-l!',
+  '🌙 Sănătatea ta contează. Eu sunt aici! ✨',
 ];
 
-String _pickMessage(AppReminder reminder) {
-  final combined = '${reminder.title} ${reminder.note ?? ''}'.toLowerCase();
-  List<String> pool;
-  if (combined.contains('pill') || combined.contains('pastil') || combined.contains('contra')) {
-    pool = _pillMessages;
-  } else if (combined.contains('water') || combined.contains('apa') || combined.contains('hidrat')) {
-    pool = _waterMessages;
-  } else if (combined.contains('sleep') || combined.contains('somn') || combined.contains('magnesium')) {
-    pool = _sleepMessages;
-  } else if (combined.contains('exercise') || combined.contains('exercit') || combined.contains('kegel') || combined.contains('sport')) {
-    pool = _exerciseMessages;
-  } else {
-    final hour = int.tryParse(reminder.time.split(':')[0]) ?? 12;
-    pool = hour < 12 ? _morningMessages : hour >= 20 ? _eveningMessages : _generalMessages;
+String _msg(AppReminder r) {
+  final txt = '${r.title} ${r.note ?? ''}'.toLowerCase();
+  List<String> p;
+  if (txt.contains('pill') || txt.contains('pastil') || txt.contains('contra')) p = _pill;
+  else if (txt.contains('water') || txt.contains('apa') || txt.contains('hidrat')) p = _water;
+  else if (txt.contains('sleep') || txt.contains('somn') || txt.contains('magnesiu')) p = _sleep;
+  else if (txt.contains('exercit') || txt.contains('sport') || txt.contains('kegel')) p = _exercise;
+  else {
+    final h = int.tryParse(r.time.split(':')[0]) ?? 12;
+    p = h < 12 ? _morning : h >= 20 ? _evening : _general;
   }
-  return pool[(reminder.id ?? 0) % pool.length];
+  return p[(r.id ?? 0) % p.length];
 }
 
 // ── NotificationService ───────────────────────────────────────────────────────
 class NotificationService {
-  static final NotificationService _instance = NotificationService._internal();
-  factory NotificationService() => _instance;
-  NotificationService._internal();
+  static final _i = NotificationService._();
+  factory NotificationService() => _i;
+  NotificationService._();
 
-  final _plugin = FlutterLocalNotificationsPlugin();
-  bool _initialized = false;
+  final _p = FlutterLocalNotificationsPlugin();
+  bool _ready = false;
+
+  static const _channel = 'luna_reminders';
+  static const _channelName = 'Luna Reminders';
 
   Future<void> init() async {
-    if (_initialized) return;
+    if (_ready) return;
+    try { tz_data.initializeTimeZones(); } catch (_) {}
     try {
-      tz_data.initializeTimeZones();
-      // TZDateTime.local() uses the device clock directly — no setLocalLocation needed
+      await _p.initialize(
+        const InitializationSettings(
+          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        ),
+      );
     } catch (_) {}
-
-    try {
-      // '@mipmap/ic_launcher' = app icon, always exists, no custom drawable needed
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-      const settings = InitializationSettings(android: androidSettings);
-      await _plugin.initialize(settings);
-    } catch (_) {}
-
-    _initialized = true;
+    _ready = true;
   }
 
   Future<bool> hasPermission() async {
     try {
       await init();
-      final android = _plugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-      return await android?.areNotificationsEnabled() ?? true;
+      return await _p
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.areNotificationsEnabled() ?? true;
     } catch (_) { return true; }
   }
 
-  Future<bool> requestPermission() async {
+  Future<void> requestPermission() async {
     try {
       await init();
-      final android = _plugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-      return await android?.requestNotificationsPermission() ?? true;
-    } catch (_) { return true; }
+      await _p
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
+    } catch (_) {}
+  }
+
+  NotificationDetails _details(String body) => NotificationDetails(
+    android: AndroidNotificationDetails(
+      _channel, _channelName,
+      channelDescription: 'Reminders from your Luna companion',
+      importance: Importance.high,
+      priority: Priority.high,
+      styleInformation: BigTextStyleInformation(body),
+      icon: '@mipmap/ic_launcher',
+    ),
+  );
+
+  // Immediate test
+  Future<void> sendTest({String companionEmoji = '🌙', String companionName = 'Luna'}) async {
+    await init();
+    await _p.show(
+      9999,
+      '$companionEmoji $companionName',
+      '🌸 Notificările funcționează! Vei primi reminder-ele la timp 💜',
+      _details('🌸 Notificările funcționează! Vei primi reminder-ele la timp 💜'),
+    );
   }
 
   Future<void> syncReminders(
@@ -115,79 +132,41 @@ class NotificationService {
     String companionName = 'Luna',
   }) async {
     await init();
-    try { await _plugin.cancelAll(); } catch (_) {}
+    try { await _p.cancelAll(); } catch (_) {}
     for (final r in reminders) {
       if (r.enabled && r.id != null) {
-        try {
-          await _scheduleOne(r, companionEmoji: companionEmoji, companionName: companionName);
-        } catch (e) {
-          print('[Luna notifications] error scheduling ${r.title}: $e');
-        }
+        try { await _schedule(r, companionEmoji, companionName); }
+        catch (e) { print('[notif] ${r.title}: $e'); }
       }
     }
   }
 
   Future<void> cancelOne(int id) async {
-    try { await _plugin.cancel(id); } catch (_) {}
+    try { await _p.cancel(id); } catch (_) {}
   }
 
-  // Public: send immediate test notification
-  Future<void> sendTest({String companionEmoji = '🌙', String companionName = 'Luna'}) async {
-    await init();
-    final details = NotificationDetails(
-      android: AndroidNotificationDetails(
-        'luna_reminders', 'Luna Reminders',
-        channelDescription: 'Reminders from your Luna companion',
-        importance: Importance.high,
-        priority: Priority.high,
-        icon: '@mipmap/ic_launcher',
-      ),
-    );
-    await _plugin.show(
-      9999,
-      '$companionEmoji $companionName',
-      '🌸 Bună! Notificările funcționează! Vei primi reminder-ele la timp 💜',
-      details,
-    );
-  }
-
-  Future<void> _scheduleOne(
-    AppReminder reminder, {
-    String companionEmoji = '🌙',
-    String companionName = 'Luna',
-  }) async {
-    final parts = reminder.time.split(':');
+  Future<void> _schedule(AppReminder r, String emoji, String name) async {
+    final parts  = r.time.split(':');
     final hour   = int.parse(parts[0]);
     final minute = int.parse(parts[1]);
+    final title  = '$emoji $name';
+    final body   = _msg(r);
+    final det    = _details(body);
 
-    final title   = '$companionEmoji $companionName';
-    final message = _pickMessage(reminder);
-
-    final androidDetails = AndroidNotificationDetails(
-      'luna_reminders',
-      'Luna Reminders',
-      channelDescription: 'Reminders from your Luna companion',
-      importance: Importance.high,
-      priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
-      styleInformation: BigTextStyleInformation(message),
-    );
-    final details = NotificationDetails(android: androidDetails);
-
-    // Build next fire time using device local time
-    final now = DateTime.now();
-    var next = DateTime(now.year, now.month, now.day, hour, minute);
+    // Compute seconds until next HH:MM
+    final now  = DateTime.now();
+    var  next  = DateTime(now.year, now.month, now.day, hour, minute);
     if (!next.isAfter(now)) next = next.add(const Duration(days: 1));
 
-    // Use TZDateTime.local() — reads the device clock directly, no tz database needed
-    final tzNext = tz.TZDateTime.local(
-      next.year, next.month, next.day, next.hour, next.minute,
-    );
+    // ── KEY FIX: use tz.TZDateTime.local() which mirrors DateTime.now() ──────
+    final tzNow  = tz.TZDateTime.now(tz.local);
+    final diff   = next.difference(now);           // pure Dart diff, no tz
+    final tzNext = tzNow.add(diff);                // apply diff to tz-aware now
 
-    switch (reminder.type) {
+    switch (r.type) {
       case 'daily':
-        await _plugin.zonedSchedule(
-          reminder.id!, title, message, tzNext, details,
+        await _p.zonedSchedule(
+          r.id!, title, body, tzNext, det,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.wallClockTime,
@@ -195,17 +174,17 @@ class NotificationService {
         );
         break;
       case 'weekly':
-        await _plugin.zonedSchedule(
-          reminder.id!, title, message, tzNext, details,
+        await _p.zonedSchedule(
+          r.id!, title, body, tzNext, det,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.wallClockTime,
           matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
         );
         break;
-      default: // one_time
-        await _plugin.zonedSchedule(
-          reminder.id!, title, message, tzNext, details,
+      default:
+        await _p.zonedSchedule(
+          r.id!, title, body, tzNext, det,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.wallClockTime,
