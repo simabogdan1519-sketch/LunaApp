@@ -87,8 +87,9 @@ class RemindersScreen extends StatelessWidget {
   void _sendTestNotification(BuildContext context) async {
     final state = context.read<AppState>();
     await NotificationService().sendTest(
-      companionEmoji: state.companionEmoji,
-      companionName: state.companionName
+      state.timezone,
+      emoji: state.companionEmoji,
+      name: state.companionName,
     );
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
