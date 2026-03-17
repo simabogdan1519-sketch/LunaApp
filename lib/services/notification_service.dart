@@ -1,55 +1,52 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest_all.dart' as tz_data;
+import 'package:workmanager/workmanager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../models/models.dart';
 
-const _pill    = ['💊 Nu uita de pastilă! 🌸', '💊 E ora pilulei! 💜', '💊 Pastila de azi 🌸', '💊 Pastilă time! ✨'];
-const _water   = ['💧 Ai băut suficientă apă? 🌸', '💧 Un pahar de apă 💧', '💧 2.5L pe zi 🌙', '💧 Hidratare! ✨'];
-const _sleep   = ['🌙 Pregătește-te de somn 💜', '🌙 Odihnește-te bine ✨', '😴 Ora de somn! 🌙', '🌙 Noapte bună! 💜'];
-const _move    = ['🏃‍♀️ Mișcare azi? 💪', '💜 15 min îți fac bine 🌸', '💪 Un pic de sport?', '🏃‍♀️ Te vei simți mai bine! 💪'];
-const _morning = ['☀️ Bună dimineața! 💜', '🌸 O nouă zi! 💜', '✨ Cum te simți azi? 📝', '☀️ Corpul tău merită atenție 💜'];
-const _evening = ['🌙 Loghează-ți ziua 💜', '🌸 Notează simptomele!', '🌙 Un moment pentru tine ✨', '💜 Cum a fost ziua?'];
-const _general = ['💜 Ai grijă de tine!', '🌸 Tu ești prioritatea!', '💜 Ascultă-ți corpul!', '🌙 Sănătatea ta contează ✨'];
-
-String _msg(AppReminder r) {
-  final t = '${r.title} ${r.note ?? ''}'.toLowerCase();
-  if (t.contains('pill') || t.contains('pastil') || t.contains('contra')) return _pill[(r.id ?? 0) % _pill.length];
-  if (t.contains('water') || t.contains('apa') || t.contains('hidrat'))   return _water[(r.id ?? 0) % _water.length];
-  if (t.contains('sleep') || t.contains('somn') || t.contains('magnesiu')) return _sleep[(r.id ?? 0) % _sleep.length];
-  if (t.contains('exercit') || t.contains('sport') || t.contains('kegel')) return _move[(r.id ?? 0) % _move.length];
-  final h = int.tryParse(r.time.split(':')[0]) ?? 12;
-  final p = h < 12 ? _morning : h >= 20 ? _evening : _general;
-  return p[(r.id ?? 0) % p.length];
+// Top-level callback required by WorkManager
+@pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((taskName, inputData) async {
+    try {
+      // Show the notification immediately when WorkManager fires
+      final plugin = FlutterLocalNotificationsPlugin();
+      await plugin.initialize(const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      ));
+      await plugin.show(
+        inputData?['id'] as int? ?? 0,
+        inputData?['title'] as String? ?? '🌸 Luna',
+        inputData?['body'] as String? ?? 'Reminder de la Luna 💜',
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'luna_reminders',
+            'Luna Reminders',
+            channelDescription: 'Reminders from your Luna companion',
+            importance: Importance.high,
+            priority: Priority.high,
+            playSound: true,
+          ),
+        ),
+      );
+    } catch (e) {
+      // ignore
+    }
+    return Future.value(true);
+  });
 }
 
 class NotificationService {
-  static final _i = NotificationService._();
-  factory NotificationService() => _i;
-  NotificationService._();
-
-  final _p = FlutterLocalNotificationsPlugin();
-  bool _ready = false;
+  final FlutterLocalNotificationsPlugin _p = FlutterLocalNotificationsPlugin();
 
   Future<void> init(String tzName) async {
-    // Always re-set the timezone (even if _ready=true) because tz.local resets between app launches
-    try {
-      tz_data.initializeTimeZones();
-      tz.setLocalLocation(tz.getLocation(tzName));
-    } catch (e) {
-      print('[notif] tz init failed for $tzName: $e, falling back to UTC');
-      try { tz.setLocalLocation(tz.UTC); } catch (_) {}
-    }
-    if (_ready) return;
     await _p.initialize(
       const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       ),
-      // Show notifications even when app is in foreground
       onDidReceiveNotificationResponse: (_) {},
     );
-    // Enable foreground notifications on Android
-    await _p
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+    await _p.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(const AndroidNotificationChannel(
           'luna_reminders',
           'Luna Reminders',
@@ -57,118 +54,93 @@ class NotificationService {
           importance: Importance.high,
           playSound: true,
         ));
-    _ready = true;
+    await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
   }
 
-  Future<bool> hasPermission(String tzName) async {
-    try {
-      await init(tzName);
-      return await _p
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.areNotificationsEnabled() ?? true;
-    } catch (_) { return true; }
+  // Calculate seconds until next occurrence of HH:mm
+  int _secondsUntil(String time) {
+    final parts = time.split(':');
+    final hour = int.parse(parts[0]);
+    final minute = int.parse(parts[1]);
+    final now = DateTime.now();
+    var fire = DateTime(now.year, now.month, now.day, hour, minute);
+    if (!fire.isAfter(now)) fire = fire.add(const Duration(days: 1));
+    return fire.difference(now).inSeconds;
   }
 
-  Future<void> requestPermission(String tzName) async {
-    try {
-      await init(tzName);
-      await _p
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.requestNotificationsPermission();
-    } catch (_) {}
+  Future<void> syncReminders(List<AppReminder> reminders, String tzName,
+      {String emoji = '🌸', String name = 'Luna'}) async {
+    // Cancel all existing WorkManager tasks
+    await Workmanager().cancelAll();
+
+    for (final r in reminders) {
+      if (!r.enabled) continue;
+
+      final delay = _secondsUntil(r.time);
+      final title = '$emoji $name';
+      final body = r.title;
+
+      // Schedule with WorkManager - registers a periodic daily task
+      // with an initial delay calculated to fire at the right time
+      await Workmanager().registerPeriodicTask(
+        'reminder_${r.id}',
+        'luna_reminder',
+        frequency: const Duration(hours: 24),
+        initialDelay: Duration(seconds: delay),
+        inputData: {
+          'id': r.id.hashCode,
+          'title': title,
+          'body': body,
+        },
+        constraints: Constraints(
+          networkType: NetworkType.not_required,
+          requiresBatteryNotLow: false,
+          requiresCharging: false,
+          requiresDeviceIdle: false,
+          requiresStorageNotLow: false,
+        ),
+        existingWorkPolicy: ExistingWorkPolicy.replace,
+        backoffPolicy: BackoffPolicy.linear,
+        backoffPolicyDelay: const Duration(minutes: 1),
+      );
+    }
   }
 
-  Future<void> sendTest(String tzName, {String emoji = '🌙', String name = 'Luna'}) async {
-    await init(tzName);
-    await _p.show(9999, '$emoji $name',
-      '🌸 Notificările funcționează! Vei primi reminder-ele la timp 💜',
-      const NotificationDetails(android: AndroidNotificationDetails(
-        'luna_reminders', 'Luna Reminders',
-        importance: Importance.high, priority: Priority.high,
-        icon: '@mipmap/ic_launcher',
-      )),
+  Future<void> sendTest(String tzName,
+      {String emoji = '🌸', String name = 'Luna'}) async {
+    await _p.show(
+      99999,
+      '$emoji $name',
+      'Notificările funcționează! Vei primi reminder-ele la orele setate 💜',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'luna_reminders',
+          'Luna Reminders',
+          importance: Importance.high,
+          priority: Priority.high,
+          playSound: true,
+        ),
+      ),
     );
   }
 
-  Future<void> syncReminders(List<AppReminder> reminders, String tzName, {
-    String emoji = '🌙', String name = 'Luna',
-  }) async {
-    await init(tzName);  // sets tz.local correctly
-    await _p.cancelAll();
-
-    for (final r in reminders) {
-      if (!r.enabled || r.id == null) continue;
-      try {
-        await _schedule(r, emoji, name);
-        print('[notif] ✓ scheduled "${r.title}" @ ${r.time} (${r.type})');
-      } catch (e) {
-        print('[notif] ✗ failed "${r.title}": $e');
-        rethrow;
-      }
-    }
+  Future<bool> hasPermission(String tzName) async {
+    final android = _p.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    return await android?.areNotificationsEnabled() ?? true;
   }
 
-  Future<void> cancelOne(int id) async {
-    try { await _p.cancel(id); } catch (_) {}
+  Future<void> requestPermission(String tzName) async {
+    final android = _p.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    await android?.requestNotificationsPermission();
   }
 
-  Future<void> _schedule(AppReminder r, String emoji, String name) async {
-    final parts  = r.time.split(':');
-    final hour   = int.parse(parts[0]);
-    final minute = int.parse(parts[1]);
-    final body   = _msg(r);
-
-    final det = NotificationDetails(android: AndroidNotificationDetails(
-      'luna_reminders', 'Luna Reminders',
-      channelDescription: 'Reminders from your Luna companion',
-      importance: Importance.high, priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
-      styleInformation: BigTextStyleInformation(body),
-    ));
-
-    // Build fire time in the user's local timezone (tz.local set in init())
-    final now  = tz.TZDateTime.now(tz.local);
-    var   fire = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-    if (!fire.isAfter(now)) fire = fire.add(const Duration(days: 1));
-
-    print('[notif] scheduling at $fire (now=$now, tz=${tz.local.name})');
-
-    switch (r.type) {
-      case 'daily':
-        await _p.zonedSchedule(r.id!, '$emoji $name', body, fire, det,
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-          matchDateTimeComponents: DateTimeComponents.time,
-        );
-        break;
-      case 'weekly':
-        await _p.zonedSchedule(r.id!, '$emoji $name', body, fire, det,
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-          matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
-        );
-        break;
-      default:
-        await _p.zonedSchedule(r.id!, '$emoji $name', body, fire, det,
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-        );
-    }
-  }
-
-  // Returns debug info about what would be scheduled
+  // Debug: returns info about next scheduled reminder
   Future<String> debugSchedule(AppReminder r, String tzName) async {
-    await init(tzName);
-    final parts  = r.time.split(':');
-    final hour   = int.parse(parts[0]);
-    final minute = int.parse(parts[1]);
-    final now    = tz.TZDateTime.now(tz.local);
-    var   fire   = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-    if (!fire.isAfter(now)) fire = fire.add(const Duration(days: 1));
-    final diff   = fire.difference(now);
-    final hours  = diff.inHours;
-    final mins   = diff.inMinutes % 60;
-    return 'tz=${tz.local.name}\nnow=$now\nfire=$fire\nin ${hours}h ${mins}m';
+    final delay = _secondsUntil(r.time);
+    final hours = delay ~/ 3600;
+    final mins = (delay % 3600) ~/ 60;
+    final now = DateTime.now();
+    final fire = now.add(Duration(seconds: delay));
+    return 'WorkManager task\nnow=$now\nfire=$fire\nin ${hours}h ${mins}m';
   }
-
 }
