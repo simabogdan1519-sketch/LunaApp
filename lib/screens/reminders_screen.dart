@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/app_state.dart';
@@ -131,6 +132,7 @@ class _PermissionBanner extends StatefulWidget {
 }
 
 class _PermissionBannerState extends State<_PermissionBanner> {
+  bool _showExactAlarmBanner = false;
   bool _dismissed = false;
   bool _hasPermission = true; // assume granted until checked
 
