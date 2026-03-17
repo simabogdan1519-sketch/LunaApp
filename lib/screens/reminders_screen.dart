@@ -132,54 +132,96 @@ class _PermissionBanner extends StatefulWidget {
 }
 
 class _PermissionBannerState extends State<_PermissionBanner> {
-  bool _showExactAlarmBanner = false;
-  bool _dismissed = false;
-  bool _hasPermission = true; // assume granted until checked
+  bool _hasNotifPermission = true;
+  bool _hasExactAlarm = true;
 
   @override
-  void initState() {
-    super.initState();
-    _checkPermission();
-  }
+  void initState() { super.initState(); _check(); }
 
-  Future<void> _checkPermission() async {
-    final granted = await context.read<AppState>().checkNotificationPermission();
-    if (mounted) setState(() => _hasPermission = granted);
+  Future<void> _check() async {
+    final notif = await context.read<AppState>().checkNotificationPermission();
+    bool exact = true;
+    try {
+      final android = FlutterLocalNotificationsPlugin()
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      exact = await android?.canScheduleExactNotifications() ?? true;
+    } catch (_) {}
+    if (mounted) setState(() { _hasNotifPermission = notif; _hasExactAlarm = exact; });
   }
 
   @override
   Widget build(BuildContext context) {
-    // Hide if already dismissed OR already has permission
-    if (_dismissed || _hasPermission) return const SizedBox.shrink();
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: LunaTheme.primary.withOpacity(.10),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: LunaTheme.primary.withOpacity(.25)),
-      ),
-      child: Row(children: [
-        const Text('🔔', style: TextStyle(fontSize: 22)),
-        const SizedBox(width: 10),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Enable notifications', style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: LunaTheme.text, fontSize: 13)),
-          Text('Allow notifications so Luna can remind you 💜', style: GoogleFonts.nunito(color: LunaTheme.text2, fontSize: 11)),
-        ])),
-        TextButton(
-          onPressed: () async {
-            await context.read<AppState>().requestNotificationPermission();
-            setState(() => _dismissed = true);
-          },
-          child: Text('Allow', style: GoogleFonts.nunito(color: LunaTheme.primary, fontWeight: FontWeight.w800)),
-        ),
-        GestureDetector(
-          onTap: () => setState(() => _dismissed = true),
-          child: Icon(Icons.close, size: 16, color: LunaTheme.text3),
-        ),
-      ]),
-    );
+    // Banner 1: no notification permission
+    if (!_hasNotifPermission) {
+      return _Banner(
+        emoji: '🔔',
+        title: 'Activează notificările',
+        body: 'Permite notificările ca Luna să îți trimită reminder-e 💜',
+        buttonLabel: 'Permite',
+        color: LunaTheme.primary,
+        onTap: () async {
+          await context.read<AppState>().requestNotificationPermission();
+          _check();
+        },
+      );
+    }
+    // Banner 2: no exact alarm permission
+    if (!_hasExactAlarm) {
+      return _Banner(
+        emoji: '⏰',
+        title: 'Permite alarme exacte',
+        body: 'Fără asta notificările nu vin la ora exactă. Setări → Aplicații → LunaApp → Alarme și memento-uri → Activează',
+        buttonLabel: 'Deschide',
+        color: Colors.orange,
+        onTap: () async {
+          try {
+            final android = FlutterLocalNotificationsPlugin()
+                .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+            await android?.requestExactAlarmsPermission();
+          } catch (_) {}
+          await Future.delayed(const Duration(seconds: 1));
+          _check();
+        },
+      );
+    }
+    return const SizedBox.shrink();
   }
+}
+
+class _Banner extends StatelessWidget {
+  final String emoji, title, body, buttonLabel;
+  final Color color;
+  final VoidCallback onTap;
+  const _Banner({required this.emoji, required this.title, required this.body, required this.buttonLabel, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(bottom: 14),
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: color.withOpacity(.08),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: color.withOpacity(.25)),
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Text(emoji, style: const TextStyle(fontSize: 20)),
+        const SizedBox(width: 8),
+        Expanded(child: Text(title, style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: color, fontSize: 13))),
+      ]),
+      const SizedBox(height: 4),
+      Text(body, style: GoogleFonts.nunito(color: LunaTheme.text2, fontSize: 11, height: 1.4)),
+      const SizedBox(height: 10),
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(10)),
+          child: Text(buttonLabel, style: GoogleFonts.nunito(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
+        ),
+      ),
+    ]),
+  );
 }
 
 class _ReminderTile extends StatelessWidget {
