@@ -33,8 +33,8 @@ jobs:
           sed -i 's/minSdkVersion .*/minSdkVersion 24/' /tmp/luna_fresh/android/app/build.gradle
           sed -i 's/targetSdk = .*/targetSdk = 35/' /tmp/luna_fresh/android/app/build.gradle
           sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' /tmp/luna_fresh/android/app/build.gradle
-          # Force versionCode=10 and versionName in build.gradle
-          sed -i 's/versionCode .*/versionCode 10/' /tmp/luna_fresh/android/app/build.gradle
+          # Use GitHub run number as versionCode (auto-increments every build)
+          sed -i "s/versionCode .*/versionCode ${{ github.run_number }}/" /tmp/luna_fresh/android/app/build.gradle
           sed -i 's/versionName .*/versionName "1.0.0"/' /tmp/luna_fresh/android/app/build.gradle
 
       - name: Set app name to LunaApp
@@ -56,7 +56,7 @@ jobs:
           MANIFEST=/tmp/luna_fresh/android/app/src/main/AndroidManifest.xml
           
           # Inject all permissions before <application> tag
-          sed -i 's|<application|<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>\n    <uses-permission android:name="android.permission.VIBRATE"/>\n    <uses-permission android:name="android.permission.WAKE_LOCK"/>\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>\n    <application|' $MANIFEST
+          sed -i 's|<application|<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>\n    <uses-permission android:name="android.permission.VIBRATE"/>\n    <uses-permission android:name="android.permission.WAKE_LOCK"/>\n    <application|' $MANIFEST
           
           # Add boot + alarm receivers inside <application>
           sed -i 's|</application>|        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">\n            <intent-filter>\n                <action android:name="android.intent.action.BOOT_COMPLETED"/>\n                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>\n                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>\n            </intent-filter>\n        </receiver>\n        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver"/>\n    </application>|' $MANIFEST
