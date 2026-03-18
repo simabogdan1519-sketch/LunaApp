@@ -31,8 +31,8 @@ jobs:
         run: |
           sed -i 's/minSdk = .*/minSdk = 24/' /tmp/luna_fresh/android/app/build.gradle
           sed -i 's/minSdkVersion .*/minSdkVersion 24/' /tmp/luna_fresh/android/app/build.gradle
-          sed -i 's/targetSdk = .*/targetSdk = 34/' /tmp/luna_fresh/android/app/build.gradle
-          sed -i 's/targetSdkVersion .*/targetSdkVersion 34/' /tmp/luna_fresh/android/app/build.gradle
+          sed -i 's/targetSdk = .*/targetSdk = 35/' /tmp/luna_fresh/android/app/build.gradle
+          sed -i 's/targetSdkVersion .*/targetSdkVersion 35/' /tmp/luna_fresh/android/app/build.gradle
 
       - name: Set app name to LunaApp
         run: |
