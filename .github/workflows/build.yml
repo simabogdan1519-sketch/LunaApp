@@ -25,7 +25,7 @@ jobs:
           channel: 'stable'
 
       - name: Create fresh Flutter project
-        run: flutter create --org com.luna --project-name luna /tmp/luna_fresh
+        run: flutter create --org ro.simabogdan --project-name lunahealth /tmp/luna_fresh
 
       - name: Fix Android SDK versions
         run: |
