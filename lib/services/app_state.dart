@@ -218,6 +218,10 @@ class AppState extends ChangeNotifier {
   Future<void> deleteDayLog(DateTime date) async {
     await _db.deleteDayLog(date);
     allDayLogs.removeWhere((l) => l.date.toIso8601String().split('T')[0] == date.toIso8601String().split('T')[0]);
+    // Also clear todayLog if it's the same date
+    if (todayLog != null && todayLog!.date.toIso8601String().split('T')[0] == date.toIso8601String().split('T')[0]) {
+      todayLog = null;
+    }
     notifyListeners();
   }
 

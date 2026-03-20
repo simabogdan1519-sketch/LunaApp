@@ -174,7 +174,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 16),
               _SectionTitle('🕐 Timezone for notifications'),
               _Card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Alege timezone-ul tău ca notificările să vină la ora corectă.',
+                Text('Select your timezone so notifications arrive at the correct time.',
                     style: GoogleFonts.nunito(color: LunaTheme.text2, fontSize: 12)),
                 const SizedBox(height: 10),
                 DropdownButton<String>(
