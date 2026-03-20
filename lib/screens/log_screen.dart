@@ -112,15 +112,21 @@ class _LogScreenState extends State<LogScreen> with SingleTickerProviderStateMix
     );
     if (confirm == true && ctx.mounted) {
       await ctx.read<AppState>().deleteDayLog(DateTime.now());
-      setState(() {
+      // Force full state reset so View tab shows empty immediately
+      if (mounted) setState(() {
         _mood = null; _energy = null; _pain = null;
         _symptoms.clear(); _notesCtrl.clear(); _tempCtrl.clear();
         _loaded = false;
       });
-      _tab.animateTo(0);
-      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('Log deleted'), backgroundColor: Colors.grey),
-      );
+      // Small delay to ensure AppState has propagated the deletion
+      await Future.delayed(const Duration(milliseconds: 100));
+      if (mounted) {
+        setState(() {}); // force rebuild of View tab
+        _tab.animateTo(0);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Log deleted'), backgroundColor: Colors.grey),
+        );
+      }
     }
   }
 

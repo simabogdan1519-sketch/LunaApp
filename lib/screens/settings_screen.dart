@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../services/app_state.dart';
 import '../theme/luna_theme.dart';
 
@@ -65,27 +67,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 16, bottom: 28),
             child: Column(children: [
-              // Avatar circle
-              Stack(
-                children: [
-                  Container(
-                    width: 80, height: 80,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(.25),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
+              // Avatar circle — tappable to pick photo
+              GestureDetector(
+                onTap: () async {
+                  final picker = ImagePicker();
+                  final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+                  if (picked != null) {
+                    context.read<AppState>().profilePhotoPath = picked.path;
+                  }
+                },
+                child: Stack(
+                  children: [
+                    Container(
+                      width: 80, height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(.25),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                      ),
+                      child: ClipOval(
+                        child: context.watch<AppState>().profilePhotoPath != null
+                          ? Image.file(File(context.watch<AppState>().profilePhotoPath!), fit: BoxFit.cover, width: 80, height: 80)
+                          : const Center(child: Text('👩', style: TextStyle(fontSize: 40))),
+                      ),
                     ),
-                    child: const Center(child: Text('👩', style: TextStyle(fontSize: 40))),
-                  ),
-                  Positioned(
-                    bottom: 0, right: 0,
-                    child: Container(
-                      width: 26, height: 26,
-                      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                      child: const Center(child: Text('📷', style: TextStyle(fontSize: 13))),
+                    Positioned(
+                      bottom: 0, right: 0,
+                      child: Container(
+                        width: 26, height: 26,
+                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                        child: const Center(child: Text('📷', style: TextStyle(fontSize: 13))),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(height: 10),
               Text(
@@ -157,7 +172,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 16),
               // Companion
               const SizedBox(height: 16),
-              _SectionTitle('🕐 Timezone pentru notificări'),
+              _SectionTitle('🕐 Timezone for notifications'),
               _Card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Alege timezone-ul tău ca notificările să vină la ora corectă.',
                     style: GoogleFonts.nunito(color: LunaTheme.text2, fontSize: 12)),
@@ -199,15 +214,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
               )),
               const SizedBox(height: 16),
               // Contraceptive toggle
-              _SectionTitle('💡 Tips & gesturi'),
+              _SectionTitle('💡 Tips & gestures'),
               _Card(child: Column(children: [
-                _TipRow('👈 Swipe stânga', 'Șterge intrări din Journal, Medical, History'),
+                _TipRow('👈 Swipe left on a card', 'Delete entries in Journal, Medical & History'),
                 const Divider(height: 1),
-                _TipRow('👆 Tap pe card', 'Deschide / editează orice intrare'),
+                _TipRow('👆 Tap a card', 'Open or edit any entry'),
                 const Divider(height: 1),
-                _TipRow('📋 Log → View', 'Vezi ce ai logat azi în tab-ul View'),
+                _TipRow('📋 Log → View tab', 'See what you logged today'),
                 const Divider(height: 1),
-                _TipRow('📅 Calendar', 'Selectează o zi pentru detalii ciclu + log'),
+                _TipRow('📅 Calendar', 'Tap a day to see cycle details & daily log'),
               ])),
               const SizedBox(height: 8),
               _SectionTitle('💊 Contraceptive tracker'),

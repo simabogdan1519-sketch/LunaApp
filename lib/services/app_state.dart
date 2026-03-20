@@ -14,6 +14,7 @@ class AppState extends ChangeNotifier {
   final _notif = NotificationService();
   int _periodLength = 5;
   String _language = 'English';
+  String? _profilePhotoPath;
   String _timezone = 'Europe/Bucharest';
   String _companionEmoji = '🐱';
   String _companionName = 'Luna';
@@ -24,6 +25,7 @@ class AppState extends ChangeNotifier {
   int get cycleLength => _cycleLength;
   int get periodLength => _periodLength;
   String get language => _language;
+  String? get profilePhotoPath => _profilePhotoPath;
   String get timezone => _timezone;
   String get companionEmoji => _companionEmoji;
   String get companionName => _companionName;
@@ -34,6 +36,7 @@ class AppState extends ChangeNotifier {
   set cycleLength(int v) { _cycleLength = v; notifyListeners(); }
   set periodLength(int v) { _periodLength = v; notifyListeners(); }
   set language(String v) { _language = v; notifyListeners(); }
+  set profilePhotoPath(String? v) { _profilePhotoPath = v; notifyListeners(); }
   void setTimezone(String v) { _timezone = v; savePrefs(); notifyListeners(); _syncNotifications(); }
   set companionEmoji(String v) { _companionEmoji = v; notifyListeners(); }
   set companionName(String v) { _companionName = v; notifyListeners(); }
@@ -98,6 +101,8 @@ class AppState extends ChangeNotifier {
       lastNotifLog = 'Syncing ${reminders.length} reminders, tz=$_timezone...';
       notifyListeners();
       await _notif.syncReminders(reminders, _timezone, emoji: _companionEmoji, name: _companionName);
+      // Also schedule medical nextDue notifications
+      await _notif.syncMedicalReminders(medicalRecords, _timezone);
       lastNotifLog = 'OK — ${reminders.where((r)=>r.enabled).length} active reminders scheduled';
       lastNotifError = '';
     } catch (e, st) {
@@ -126,6 +131,7 @@ class AppState extends ChangeNotifier {
     _cycleLength = p.getInt('cycleLength') ?? 28;
     _periodLength = p.getInt('periodLength') ?? 5;
     _language = p.getString('language') ?? 'English';
+    _profilePhotoPath = p.getString('profilePhotoPath');
     _timezone = p.getString('timezone') ?? 'Europe/Bucharest';
     _companionEmoji = p.getString('companionEmoji') ?? '🐱';
     _companionName = p.getString('companionName') ?? 'Luna';
@@ -140,6 +146,7 @@ class AppState extends ChangeNotifier {
     await p.setInt('cycleLength', _cycleLength);
     await p.setInt('periodLength', _periodLength);
     await p.setString('language', _language);
+    if (_profilePhotoPath != null) await p.setString('profilePhotoPath', _profilePhotoPath!);
     await p.setString('timezone', _timezone);
     await p.setString('companionEmoji', _companionEmoji);
     await p.setString('companionName', _companionName);

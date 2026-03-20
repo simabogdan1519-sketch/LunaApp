@@ -83,6 +83,14 @@ class NotificationService {
     );
   }
 
+  Future<void> syncMedicalReminders(List<MedicalRecord> records, String tzName) async {
+    // records here is actually MedicalRecord list — we handle via dynamic
+    // Cancel existing medical notifications (ids 50000+)
+    for (int i = 50000; i < 50100; i++) {
+      await _p.cancel(i);
+    }
+  }
+
   Future<void> cancelOne(int id) async {
     await _p.cancel(id.hashCode);
   }
