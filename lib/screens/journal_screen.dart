@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/app_state.dart';
 import '../theme/luna_theme.dart';
 import '../models/models.dart';
@@ -200,7 +201,11 @@ class _JournalScreenState extends State<JournalScreen> {
   );
 
   Widget _buildList(AppState state) {
-    if (state.journalEntries.isEmpty) {
+    final log = state.todayLog;
+    final hasLog = log != null;
+    final moodEmojisL = ['', '😣', '😔', '😐', '😊', '🥰'];
+
+    if (state.journalEntries.isEmpty && !hasLog) {
       return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
         const Text('📓', style: TextStyle(fontSize: 48)),
         const SizedBox(height: 12),
@@ -209,11 +214,72 @@ class _JournalScreenState extends State<JournalScreen> {
         Text('Tap + New to write your first entry', style: GoogleFonts.nunito(color: LunaTheme.text3, fontSize: 13)),
       ]));
     }
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: state.journalEntries.length,
+    return Column(children: [
+      // Swipe tip banner
+      AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        child: _showSwipeTip
+          ? Container(
+              key: const ValueKey('tip'),
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: LunaTheme.primary.withOpacity(.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: LunaTheme.primary.withOpacity(.2)),
+              ),
+              child: Row(children: [
+                const Text('👈', style: TextStyle(fontSize: 16)),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Swipe left on an entry to delete it',
+                    style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700, color: LunaTheme.primary))),
+                GestureDetector(
+                  onTap: () => setState(() => _showSwipeTip = false),
+                  child: Icon(Icons.close_rounded, size: 16, color: LunaTheme.text3),
+                ),
+              ]),
+            )
+          : const SizedBox.shrink(key: ValueKey('empty')),
+      ),
+      Expanded(child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: state.journalEntries.length + (hasLog ? 1 : 0),
       itemBuilder: (ctx, i) {
-        final e = state.journalEntries[i];
+        // First item = today's daily log summary (if exists)
+        if (hasLog && i == 0) {
+          final log = state.todayLog!;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [LunaTheme.primary, LunaTheme.secondary]),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  const Text('📋', style: TextStyle(fontSize: 18)),
+                  const SizedBox(width: 8),
+                  Text("Today's Log — ${DateFormat('MMM d').format(log.date)}",
+                      style: GoogleFonts.nunito(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14)),
+                  const Spacer(),
+                  if (log.mood != null) Text(moodEmojisL[log.mood!], style: const TextStyle(fontSize: 18)),
+                ]),
+                if (log.symptoms.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(log.symptoms.take(4).join(' · '),
+                      style: GoogleFonts.nunito(color: Colors.white70, fontSize: 12)),
+                ],
+                if (log.notes != null && log.notes!.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(log.notes!, maxLines: 2, overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.nunito(color: Colors.white70, fontSize: 12, height: 1.4)),
+                ],
+              ]),
+            ),
+          );
+        }
+        final e = state.journalEntries[hasLog ? i - 1 : i];
         final moodEmojis = ['', '😣', '😔', '😐', '😊', '🥰'];
         return Dismissible(
           key: ValueKey(e.id),
@@ -271,6 +337,6 @@ class _JournalScreenState extends State<JournalScreen> {
           ),
         );
       },
-    );
+    ))]);
   }
 }

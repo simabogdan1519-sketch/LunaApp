@@ -32,14 +32,14 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   List<_TabDef> _buildTabs(bool contra) => [
     _TabDef('🏠', 'Home',      const HomeScreen()),
-    _TabDef('💗', 'Log',       const LogScreen()),
     _TabDef('📅', 'Calendar',  const CalendarScreen()),
-    _TabDef('📝', 'Journal',   const JournalScreen()),
-    _TabDef('💡', 'Tips',      const TipsScreen()),
+    if (contra) _TabDef('💊', 'Contra', const ContraScreen()),
     _TabDef('📊', 'History',   const HistoryScreen()),
+    _TabDef('💡', 'Tips',      const TipsScreen()),
+    _TabDef('💗', 'Log',       const LogScreen()),
+    _TabDef('📝', 'Journal',   const JournalScreen()),
     _TabDef('🩺', 'Medical',   const MedicalScreen()),
     _TabDef('🔔', 'Reminders', const RemindersScreen()),
-    if (contra) _TabDef('💊', 'Contra', const ContraScreen()),
     _TabDef('👩', 'Profile',   const SettingsScreen()),
   ];
 

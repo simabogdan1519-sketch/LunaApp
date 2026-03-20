@@ -199,6 +199,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               )),
               const SizedBox(height: 16),
               // Contraceptive toggle
+              _SectionTitle('💡 Tips & gesturi'),
+              _Card(child: Column(children: [
+                _TipRow('👈 Swipe stânga', 'Șterge intrări din Journal, Medical, History'),
+                const Divider(height: 1),
+                _TipRow('👆 Tap pe card', 'Deschide / editează orice intrare'),
+                const Divider(height: 1),
+                _TipRow('📋 Log → View', 'Vezi ce ai logat azi în tab-ul View'),
+                const Divider(height: 1),
+                _TipRow('📅 Calendar', 'Selectează o zi pentru detalii ciclu + log'),
+              ])),
+              const SizedBox(height: 8),
               _SectionTitle('💊 Contraceptive tracker'),
               _Card(child: Row(children: [
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -237,6 +248,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
+}
+
+class _TipRow extends StatelessWidget {
+  final String action, description;
+  const _TipRow(this.action, this.description);
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+    child: Row(children: [
+      SizedBox(width: 160, child: Text(action, style: GoogleFonts.nunito(fontWeight: FontWeight.w800, fontSize: 13, color: LunaTheme.text))),
+      Expanded(child: Text(description, style: GoogleFonts.nunito(fontSize: 12, color: LunaTheme.text2))),
+    ]),
+  );
 }
 
 class _SectionTitle extends StatelessWidget {

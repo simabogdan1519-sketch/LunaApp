@@ -521,3 +521,131 @@ class _PastCyclesList extends StatelessWidget {
     );
   }
 }
+
+// ── Mood trend chart ──────────────────────────────────────────────────────────
+class _MoodTrendChart extends StatelessWidget {
+  final List<DayLog> logs;
+  const _MoodTrendChart({required this.logs});
+
+  @override
+  Widget build(BuildContext context) {
+    final recent = logs.where((l) => l.mood != null)
+        .toList()..sort((a, b) => a.date.compareTo(b.date));
+    final show = recent.length > 14 ? recent.sublist(recent.length - 14) : recent;
+    if (show.isEmpty) return const SizedBox.shrink();
+
+    final moodEmojis = ['', '😣','😔','😐','😊','🥰'];
+    final moodColors = [Colors.transparent, Colors.red[300]!, Colors.orange[300]!,
+        Colors.grey[400]!, Colors.green[300]!, Colors.pink[300]!];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('😊 Mood Trend (last ${show.length} days)',
+            style: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: LunaTheme.text, fontSize: 15)),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 80,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: show.map((l) {
+              final h = ((l.mood ?? 0) / 5 * 60).toDouble();
+              return Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
+                Text(moodEmojis[l.mood!], style: const TextStyle(fontSize: 14)),
+                const SizedBox(height: 2),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 400),
+                  height: h.clamp(4, 60),
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    color: moodColors[l.mood!].withOpacity(.7),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ]));
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text(DateFormat('MMM d').format(show.first.date),
+              style: GoogleFonts.nunito(fontSize: 10, color: LunaTheme.text3)),
+          Text(DateFormat('MMM d').format(show.last.date),
+              style: GoogleFonts.nunito(fontSize: 10, color: LunaTheme.text3)),
+        ]),
+        const SizedBox(height: 12),
+        // Average mood
+        Builder(builder: (_) {
+          final avg = show.map((l) => l.mood!).reduce((a, b) => a + b) / show.length;
+          final avgIdx = avg.round().clamp(1, 5);
+          return Row(children: [
+            Text('Average mood: ', style: GoogleFonts.nunito(color: LunaTheme.text2, fontSize: 12)),
+            Text(moodEmojis[avgIdx], style: const TextStyle(fontSize: 16)),
+            const SizedBox(width: 4),
+            Text(avg.toStringAsFixed(1), style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: LunaTheme.text, fontSize: 12)),
+          ]);
+        }),
+      ]),
+    );
+  }
+}
+
+// ── Symptom frequency chart ───────────────────────────────────────────────────
+class _SymptomFrequencyChart extends StatelessWidget {
+  final List<DayLog> logs;
+  const _SymptomFrequencyChart({required this.logs});
+
+  @override
+  Widget build(BuildContext context) {
+    // Count symptoms
+    final Map<String, int> counts = {};
+    for (final log in logs) {
+      for (final s in log.symptoms) {
+        counts[s] = (counts[s] ?? 0) + 1;
+      }
+    }
+    if (counts.isEmpty) return const SizedBox.shrink();
+
+    final sorted = counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final top = sorted.take(6).toList();
+    final maxVal = top.first.value;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('🩺 Top Symptoms', style: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: LunaTheme.text, fontSize: 15)),
+        const SizedBox(height: 4),
+        Text('Based on ${logs.length} logged days', style: GoogleFonts.nunito(color: LunaTheme.text3, fontSize: 11)),
+        const SizedBox(height: 14),
+        ...top.map((e) {
+          final pct = e.value / maxVal;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Expanded(child: Text(e.key, style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700, color: LunaTheme.text))),
+                Text('${e.value}x', style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w800, color: LunaTheme.primary)),
+              ]),
+              const SizedBox(height: 4),
+              Stack(children: [
+                Container(height: 8, decoration: BoxDecoration(color: LunaTheme.surfaceV, borderRadius: BorderRadius.circular(4))),
+                FractionallySizedBox(
+                  widthFactor: pct,
+                  child: Container(
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: LunaTheme.primary.withOpacity(.7),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ]),
+            ]),
+          );
+        }),
+      ]),
+    );
+  }
+}

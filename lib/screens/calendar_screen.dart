@@ -146,15 +146,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
           if (_selected != null) ...[
             const Divider(height: 1),
             Expanded(
-              child: _DayDetail(
-                state: state,
-                day: _selected!,
-                onDeleteCycle: (id) async {
-                  await context.read<AppState>().deleteCycle(id);
-                  setState(() => _selected = null);
-                },
+              child: SingleChildScrollView(
+                child: Column(children: [
+                  _DayDetail(
+                    state: state,
+                    day: _selected!,
+                    onDeleteCycle: (id) async {
+                      await context.read<AppState>().deleteCycle(id);
+                      setState(() => _selected = null);
+                    },
+                  ),
+                  _DayLogSummary(state: state, day: _selected!),
+                ]),
               ),
             ),
+          ] else ...[
+            const Divider(height: 1),
+            _UpcomingEventsPanel(state: state),
           ],
         ],
       ),
@@ -430,4 +438,153 @@ class _LegItem extends StatelessWidget {
                 color: LunaTheme.text2,
                 fontWeight: FontWeight.w600)),
       ]);
+}
+
+// ── Day log summary panel ─────────────────────────────────────────────────────
+class _DayLogSummary extends StatelessWidget {
+  final AppState state;
+  final DateTime day;
+  const _DayLogSummary({required this.state, required this.day});
+
+  @override
+  Widget build(BuildContext context) {
+    // Find log for this day
+    DayLog? log;
+    try {
+      log = state.allDayLogs.firstWhere((l) =>
+          l.date.year == day.year && l.date.month == day.month && l.date.day == day.day);
+    } catch (_) {}
+
+    if (log == null) return const SizedBox.shrink();
+
+    final moodEmojis = ['', '😣','😔','😐','😊','🥰'];
+    final moodLabels = ['', 'Terrible','Bad','Ok','Good','Great'];
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: LunaTheme.primary.withOpacity(.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: LunaTheme.primary.withOpacity(.15)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('📋 Daily Log', style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: LunaTheme.text, fontSize: 13)),
+        const SizedBox(height: 10),
+        Row(children: [
+          if (log.mood != null) ...[
+            Text(moodEmojis[log.mood!], style: const TextStyle(fontSize: 18)),
+            const SizedBox(width: 6),
+            Text(moodLabels[log.mood!], style: GoogleFonts.nunito(fontWeight: FontWeight.w700, color: LunaTheme.text, fontSize: 13)),
+            const SizedBox(width: 16),
+          ],
+          if (log.energy != null) ...[
+            Text('⚡', style: const TextStyle(fontSize: 14)),
+            const SizedBox(width: 4),
+            Text('${log.energy}/5', style: GoogleFonts.nunito(fontWeight: FontWeight.w700, color: LunaTheme.text, fontSize: 13)),
+            const SizedBox(width: 16),
+          ],
+          if (log.pain != null) ...[
+            Text('🤕', style: const TextStyle(fontSize: 14)),
+            const SizedBox(width: 4),
+            Text('${log.pain}/5', style: GoogleFonts.nunito(fontWeight: FontWeight.w700, color: LunaTheme.text, fontSize: 13)),
+          ],
+        ]),
+        if (log.symptoms.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6, runSpacing: 4,
+            children: log.symptoms.map((s) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(color: LunaTheme.primary.withOpacity(.12), borderRadius: BorderRadius.circular(10)),
+              child: Text(s, style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: LunaTheme.primary)),
+            )).toList(),
+          ),
+        ],
+        if (log.notes != null && log.notes!.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(log.notes!, style: GoogleFonts.nunito(color: LunaTheme.text2, fontSize: 12, height: 1.5), maxLines: 3, overflow: TextOverflow.ellipsis),
+        ],
+      ]),
+    );
+  }
+}
+
+// ── Upcoming events panel (shown when no day is selected) ─────────────────────
+class _UpcomingEventsPanel extends StatelessWidget {
+  final AppState state;
+  const _UpcomingEventsPanel({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final next = state.nextThreePeriods;
+    final now = DateTime.now();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('🔮 Upcoming', style: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: LunaTheme.text, fontSize: 15)),
+        const SizedBox(height: 10),
+        if (next.isEmpty)
+          Text('Add cycles to see predictions', style: GoogleFonts.nunito(color: LunaTheme.text3, fontSize: 13))
+        else
+          ...next.take(3).map((p) {
+            final daysUntil = p.startDate.difference(DateTime(now.year, now.month, now.day)).inDays;
+            final label = daysUntil == 0 ? 'Today'
+                : daysUntil == 1 ? 'Tomorrow'
+                : 'In $daysUntil days';
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: LunaTheme.menstrual.withOpacity(.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: LunaTheme.menstrual.withOpacity(.2)),
+              ),
+              child: Row(children: [
+                Text('🩸', style: const TextStyle(fontSize: 18)),
+                const SizedBox(width: 10),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Period expected', style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: LunaTheme.text, fontSize: 13)),
+                  Text(DateFormat('MMMM d, yyyy').format(p.startDate),
+                      style: GoogleFonts.nunito(color: LunaTheme.text2, fontSize: 12)),
+                ])),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(color: LunaTheme.menstrual.withOpacity(.15), borderRadius: BorderRadius.circular(10)),
+                  child: Text(label, style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: LunaTheme.menstrual, fontSize: 11)),
+                ),
+              ]),
+            );
+          }),
+        const SizedBox(height: 12),
+        // Ovulation prediction
+        if (state.nextOvulation != null) ...[
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: LunaTheme.ovulation.withOpacity(.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: LunaTheme.ovulation.withOpacity(.2)),
+            ),
+            child: Row(children: [
+              Text('🌸', style: const TextStyle(fontSize: 18)),
+              const SizedBox(width: 10),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Ovulation window', style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: LunaTheme.text, fontSize: 13)),
+                Text(DateFormat('MMMM d, yyyy').format(state.nextOvulation!),
+                    style: GoogleFonts.nunito(color: LunaTheme.text2, fontSize: 12)),
+              ])),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: LunaTheme.ovulation.withOpacity(.15), borderRadius: BorderRadius.circular(10)),
+                child: Text('Fertile', style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: LunaTheme.ovulation, fontSize: 11)),
+              ),
+            ]),
+          ),
+        ],
+      ]),
+    );
+  }
 }
