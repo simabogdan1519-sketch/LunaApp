@@ -43,18 +43,7 @@ class _MainScaffoldState extends State<MainScaffold> {
     _TabDef('👩', 'Profile',   const SettingsScreen()),
   ];
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final state = context.read<AppState>();
-    if (state.pendingNavTab != null) {
-      final target = state.pendingNavTab!;
-      state.pendingNavTab = null;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _selectedIdx = target.clamp(0, _buildTabs(state.contraEnabled).length - 1));
-      });
-    }
-  }
+  bool _prevContra = false;
 
   void _select(int i) {
     if (i == _selectedIdx) return;
@@ -65,6 +54,19 @@ class _MainScaffoldState extends State<MainScaffold> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+    // When contra gets enabled, jump to its tab
+    if (state.contraEnabled && !_prevContra) {
+      _prevContra = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          final tabs = _buildTabs(true);
+          final contraIdx = tabs.indexWhere((t) => t.label == 'Contra');
+          if (contraIdx != -1) setState(() => _selectedIdx = contraIdx);
+        }
+      });
+    } else if (!state.contraEnabled) {
+      _prevContra = false;
+    }
     final tabs = _buildTabs(state.contraEnabled);
     final safeIdx = _selectedIdx.clamp(0, tabs.length - 1);
 

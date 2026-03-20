@@ -157,18 +157,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ])),
                 Switch(
                   value: state.contraEnabled,
-                  onChanged: (v) async {
+                  onChanged: (v) {
                     state.contraEnabled = v;
-                    await state.savePrefs();
-                    // Navigate to Contra tab when enabled
-                    if (v && context.mounted) {
-                      // Find the MainScaffold and switch to Contra tab
-                      // Contra is at index 2 when enabled
-                      Navigator.of(context).popUntil((route) => route.isFirst);
-                      // Use a small delay then select the contra tab via app state
-                      await Future.delayed(const Duration(milliseconds: 100));
-                      if (context.mounted) state.pendingNavTab = 2;
-                    }
+                    state.savePrefs();
                   },
                   activeColor: LunaTheme.primary,
                 ),

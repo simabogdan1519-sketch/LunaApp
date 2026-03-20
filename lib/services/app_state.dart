@@ -169,15 +169,16 @@ class AppState extends ChangeNotifier {
     await loadAll();
   }
 
-  Future<void> addPastCycle(DateTime startDate, DateTime endDate) async {
-    // periodLength = actual days of bleeding (endDate - startDate)
-    // cycleLength = full cycle length from user settings
-    final bleedingDays = endDate.difference(startDate).inDays.clamp(1, 14);
+  Future<void> addPastCycle(DateTime startDate, DateTime? endDate) async {
+    // If no end date given, calculate it using the smart period length
+    final effectivePeriodLen = smartPeriodLength;
+    final computedEnd = endDate ?? startDate.add(Duration(days: effectivePeriodLen));
+    final bleedingDays = computedEnd.difference(startDate).inDays.clamp(1, 14);
     await _db.insertCycle(CycleEntry(
       startDate: startDate,
-      endDate: endDate,
-      cycleLength: _cycleLength,   // use user's cycle length setting
-      periodLength: bleedingDays,  // actual period duration
+      endDate: computedEnd,
+      cycleLength: _cycleLength,
+      periodLength: bleedingDays,
     ));
     await loadAll();
   }

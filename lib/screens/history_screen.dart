@@ -135,11 +135,11 @@ class _AddCycleSheetState extends State<_AddCycleSheet> {
   }
 
   Future<void> _save() async {
-    if (_start == null || _end == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please pick both dates')));
+    if (_start == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please pick a start date')));
       return;
     }
-    if (!_end!.isAfter(_start!)) {
+    if (_end != null && !_end!.isAfter(_start!)) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('End date must be after start date')));
       return;
     }
@@ -159,7 +159,7 @@ class _AddCycleSheetState extends State<_AddCycleSheet> {
       );
       await state.updateCycle(updated);
     } else {
-      await context.read<AppState>().addPastCycle(_start!, _end!);
+      await context.read<AppState>().addPastCycle(_start!, _end);
     }
     if (mounted) {
       Navigator.pop(context);
@@ -192,7 +192,7 @@ class _AddCycleSheetState extends State<_AddCycleSheet> {
           const SizedBox(height: 20),
           Text('Add past cycle', style: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.w900, color: LunaTheme.text)),
           const SizedBox(height: 6),
-          Text('Pick the start and end date of a past period', style: GoogleFonts.nunito(color: LunaTheme.text2, fontSize: 13)),
+          Text('Pick when your period started. End date is optional — if left empty, your default period length will be used.', style: GoogleFonts.nunito(color: LunaTheme.text2, fontSize: 13)),
           const SizedBox(height: 24),
           // Start date
           _DatePickerRow(
@@ -204,7 +204,7 @@ class _AddCycleSheetState extends State<_AddCycleSheet> {
           const SizedBox(height: 12),
           // End date
           _DatePickerRow(
-            label: '✅ Period ended',
+            label: '✅ Period ended (optional)',
             value: hasEnd ? fmt.format(_end!) : 'Tap to pick',
             hasValue: hasEnd,
             onTap: () => _pickDate(false),
