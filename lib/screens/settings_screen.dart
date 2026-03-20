@@ -149,6 +149,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _SliderRow('🩸 Period length', state.periodLength, 2, 8, LunaTheme.menstrual, (v) { state.periodLength = v; state.savePrefs(); setState(() {}); }),
               ])),
               const SizedBox(height: 16),
+              _SectionTitle('💊 Contraceptive tracker'),
+              _Card(child: Row(children: [
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Enable pill tracking', style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: LunaTheme.text)),
+                  Text('Adds pill log & brands tab', style: GoogleFonts.nunito(color: LunaTheme.text3, fontSize: 12)),
+                ])),
+                Switch(
+                  value: state.contraEnabled,
+                  onChanged: (v) async {
+                    state.contraEnabled = v;
+                    await state.savePrefs();
+                    // Navigate to Contra tab when enabled
+                    if (v && context.mounted) {
+                      // Find the MainScaffold and switch to Contra tab
+                      // Contra is at index 2 when enabled
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                      // Use a small delay then select the contra tab via app state
+                      await Future.delayed(const Duration(milliseconds: 100));
+                      if (context.mounted) state.pendingNavTab = 2;
+                    }
+                  },
+                  activeColor: LunaTheme.primary,
+                ),
+              ])),
+              if (state.contraEnabled) ...[
+                const SizedBox(height: 12),
+                _Card(child: GestureDetector(
+                  onTap: () async {
+                    final parts = state.pillReminderTime.split(':');
+                    final picked = await showTimePicker(context: context, initialTime: TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1])));
+                    if (picked != null) {
+                      state.pillReminderTime = '\${picked.hour.toString().padLeft(2,'0')}:\${picked.minute.toString().padLeft(2,'0')}';
+                      state.savePrefs(); setState(() {});
+                    }
+                  },
+                  child: Row(children: [
+                    const Text('⏰', style: TextStyle(fontSize: 22)),
+                    const SizedBox(width: 12),
+                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Pill reminder', style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: LunaTheme.text)),
+                      Text(state.pillReminderTime, style: GoogleFonts.nunito(color: LunaTheme.primary, fontWeight: FontWeight.w900, fontSize: 18)),
+                    ]),
+                    const Spacer(),
+                    Icon(Icons.edit_outlined, color: LunaTheme.text3, size: 18),
+                  ]),
+                )),
+              ],
+              const SizedBox(height: 16),
               // Language
               _SectionTitle('🌍 Language'),
               _Card(child: Wrap(
@@ -224,38 +272,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const Divider(height: 1),
                 _TipRow('📅 Calendar', 'Tap a day to see cycle details & daily log'),
               ])),
-              const SizedBox(height: 8),
-              _SectionTitle('💊 Contraceptive tracker'),
-              _Card(child: Row(children: [
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Enable pill tracking', style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: LunaTheme.text)),
-                  Text('Adds pill log & brands tab', style: GoogleFonts.nunito(color: LunaTheme.text3, fontSize: 12)),
-                ])),
-                Switch(value: state.contraEnabled, onChanged: (v) { state.contraEnabled = v; state.savePrefs(); }, activeColor: LunaTheme.primary),
-              ])),
-              if (state.contraEnabled) ...[
-                const SizedBox(height: 12),
-                _Card(child: GestureDetector(
-                  onTap: () async {
-                    final parts = state.pillReminderTime.split(':');
-                    final picked = await showTimePicker(context: context, initialTime: TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1])));
-                    if (picked != null) {
-                      state.pillReminderTime = '${picked.hour.toString().padLeft(2,'0')}:${picked.minute.toString().padLeft(2,'0')}';
-                      state.savePrefs(); setState(() {});
-                    }
-                  },
-                  child: Row(children: [
-                    const Text('⏰', style: TextStyle(fontSize: 22)),
-                    const SizedBox(width: 12),
-                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Pill reminder', style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: LunaTheme.text)),
-                      Text(state.pillReminderTime, style: GoogleFonts.nunito(color: LunaTheme.primary, fontWeight: FontWeight.w900, fontSize: 18)),
-                    ]),
-                    const Spacer(),
-                    Icon(Icons.edit_outlined, color: LunaTheme.text3, size: 18),
-                  ]),
-                )),
-              ],
               const SizedBox(height: 32),
             ]),
           ),

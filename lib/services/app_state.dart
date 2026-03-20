@@ -15,6 +15,7 @@ class AppState extends ChangeNotifier {
   int _periodLength = 5;
   String _language = 'English';
   String? _profilePhotoPath;
+  int? pendingNavTab;
   String _timezone = 'Europe/Bucharest';
   String _companionEmoji = '🐱';
   String _companionName = 'Luna';

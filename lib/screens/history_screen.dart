@@ -478,31 +478,7 @@ class _PastCyclesList extends StatelessWidget {
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                   ),
-                  IconButton(
-                    icon: Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red[300]),
-                    onPressed: () async {
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (_) => AlertDialog(
-                          title: Text('Delete cycle?', style: GoogleFonts.nunito(fontWeight: FontWeight.w800)),
-                          content: Text(
-                            'Cycle from ${DateFormat("MMM d, yyyy").format(c.startDate)} will be permanently deleted.',
-                            style: GoogleFonts.nunito(),
-                          ),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: Text('Delete', style: TextStyle(color: Colors.red[400])),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (confirm == true) onDelete(c.id!);
-                    },
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                  ),
+
                 ]),
               ]),
             ),

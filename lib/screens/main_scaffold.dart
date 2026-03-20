@@ -43,6 +43,19 @@ class _MainScaffoldState extends State<MainScaffold> {
     _TabDef('👩', 'Profile',   const SettingsScreen()),
   ];
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final state = context.read<AppState>();
+    if (state.pendingNavTab != null) {
+      final target = state.pendingNavTab!;
+      state.pendingNavTab = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _selectedIdx = target.clamp(0, _buildTabs(state.contraEnabled).length - 1));
+      });
+    }
+  }
+
   void _select(int i) {
     if (i == _selectedIdx) return;
     HapticFeedback.lightImpact();
