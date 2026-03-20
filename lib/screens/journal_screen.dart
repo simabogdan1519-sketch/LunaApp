@@ -20,6 +20,25 @@ class _JournalScreenState extends State<JournalScreen> {
   final _contentCtrl = TextEditingController();
   int? _mood;
   bool _saving = false;
+  bool _showSwipeTip = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSwipeTip();
+  }
+
+  Future<void> _checkSwipeTip() async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('journal_swipe_tip_seen') ?? false;
+    if (!seen && mounted) {
+      setState(() => _showSwipeTip = true);
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted) setState(() => _showSwipeTip = false);
+        prefs.setBool('journal_swipe_tip_seen', true);
+      });
+    }
+  }
 
   void _openNew() {
     _editing = null;

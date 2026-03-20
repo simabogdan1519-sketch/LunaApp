@@ -529,7 +529,7 @@ class _UpcomingEventsPanel extends StatelessWidget {
           Text('Add cycles to see predictions', style: GoogleFonts.nunito(color: LunaTheme.text3, fontSize: 13))
         else
           ...next.take(3).map((p) {
-            final daysUntil = p.startDate.difference(DateTime(now.year, now.month, now.day)).inDays;
+            final daysUntil = p.difference(DateTime(now.year, now.month, now.day)).inDays;
             final label = daysUntil == 0 ? 'Today'
                 : daysUntil == 1 ? 'Tomorrow'
                 : 'In $daysUntil days';
@@ -546,7 +546,7 @@ class _UpcomingEventsPanel extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('Period expected', style: GoogleFonts.nunito(fontWeight: FontWeight.w800, color: LunaTheme.text, fontSize: 13)),
-                  Text(DateFormat('MMMM d, yyyy').format(p.startDate),
+                  Text(DateFormat('MMMM d, yyyy').format(p),
                       style: GoogleFonts.nunito(color: LunaTheme.text2, fontSize: 12)),
                 ])),
                 Container(
