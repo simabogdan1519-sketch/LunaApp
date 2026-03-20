@@ -4,30 +4,49 @@ import 'package:timezone/data/latest_all.dart' as tz_data;
 import '../models/models.dart';
 
 class NotificationService {
+  // Singleton — same instance everywhere in the app
+  static final NotificationService _instance = NotificationService._internal();
+  factory NotificationService() => _instance;
+  NotificationService._internal();
+
   final FlutterLocalNotificationsPlugin _p = FlutterLocalNotificationsPlugin();
+  bool _initialized = false;
 
   Future<void> init(String tzName) async {
     tz_data.initializeTimeZones();
-    try { tz.setLocalLocation(tz.getLocation(tzName)); } catch (_) {}
+    try {
+      tz.setLocalLocation(tz.getLocation(tzName));
+    } catch (_) {
+      tz.setLocalLocation(tz.getLocation('Europe/Bucharest'));
+    }
+    if (_initialized) return;
+    _initialized = true;
+
     await _p.initialize(
       const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       ),
       onDidReceiveNotificationResponse: (_) {},
     );
+
+    // Create notification channel with high importance
     await _p
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(const AndroidNotificationChannel(
           'luna_reminders',
           'Luna Reminders',
-          description: 'Reminders from your Luna companion',
-          importance: Importance.high,
+          description: 'Daily reminders from LunaApp',
+          importance: Importance.max,
           playSound: true,
+          enableVibration: true,
+          showBadge: true,
         ));
   }
 
   tz.TZDateTime _nextInstance(String time, String tzName) {
-    try { tz.setLocalLocation(tz.getLocation(tzName)); } catch (_) {}
+    try {
+      tz.setLocalLocation(tz.getLocation(tzName));
+    } catch (_) {}
     final parts = time.split(':');
     final hour = int.parse(parts[0]);
     final minute = int.parse(parts[1]);
@@ -39,27 +58,34 @@ class NotificationService {
 
   Future<void> syncReminders(List<AppReminder> reminders, String tzName,
       {String emoji = '🌸', String name = 'Luna'}) async {
+    await init(tzName);
     await _p.cancelAll();
+
     for (final r in reminders) {
       if (!r.enabled) continue;
+      final fire = _nextInstance(r.time, tzName);
+      final id = r.id.hashCode.abs() % 100000;
+
       await _p.zonedSchedule(
-        r.id.hashCode,
+        id,
         '$emoji $name',
         r.title,
-        _nextInstance(r.time, tzName),
+        fire,
         NotificationDetails(
           android: AndroidNotificationDetails(
             'luna_reminders',
             'Luna Reminders',
-            channelDescription: 'Reminders from your Luna companion',
-            importance: Importance.high,
+            channelDescription: 'Daily reminders from LunaApp',
+            importance: Importance.max,
             priority: Priority.high,
             playSound: true,
-            largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+            enableVibration: true,
+            largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
           ),
         ),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.time,
       );
     }
@@ -67,6 +93,7 @@ class NotificationService {
 
   Future<void> sendTest(String tzName,
       {String emoji = '🌸', String name = 'Luna'}) async {
+    await init(tzName);
     await _p.show(
       99999,
       '$emoji $name',
@@ -75,7 +102,7 @@ class NotificationService {
         android: AndroidNotificationDetails(
           'luna_reminders',
           'Luna Reminders',
-          importance: Importance.high,
+          importance: Importance.max,
           priority: Priority.high,
           playSound: true,
         ),
@@ -84,31 +111,49 @@ class NotificationService {
   }
 
   Future<void> syncMedicalReminders(List<MedicalRecord> records, String tzName) async {
-    // records here is actually MedicalRecord list — we handle via dynamic
-    // Cancel existing medical notifications (ids 50000+)
-    for (int i = 50000; i < 50100; i++) {
-      await _p.cancel(i);
+    await init(tzName);
+    for (int i = 50000; i < 50100; i++) { await _p.cancel(i); }
+    int id = 50000;
+    for (final r in records) {
+      if (r.nextDue == null) continue;
+      try { tz.setLocalLocation(tz.getLocation(tzName)); } catch (_) {}
+      final now = tz.TZDateTime.now(tz.local);
+      final due = tz.TZDateTime(tz.local,
+          r.nextDue!.year, r.nextDue!.month, r.nextDue!.day, 9, 0);
+      if (!due.isAfter(now)) continue;
+      await _p.zonedSchedule(
+        id++,
+        '🩺 Medical reminder',
+        '${r.title} is due today',
+        due,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'luna_reminders', 'Luna Reminders',
+            importance: Importance.max, priority: Priority.high,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
     }
   }
 
   Future<void> cancelOne(int id) async {
-    await _p.cancel(id.hashCode);
+    await _p.cancel(id.hashCode.abs() % 100000);
   }
 
   Future<bool> hasPermission(String tzName) async {
-    final android = _p.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    await init(tzName);
+    final android = _p.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
     return await android?.areNotificationsEnabled() ?? true;
   }
 
   Future<void> requestPermission(String tzName) async {
-    final android = _p.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    await init(tzName);
+    final android = _p.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
     await android?.requestNotificationsPermission();
-  }
-
-  Future<String> debugSchedule(AppReminder r, String tzName) async {
-    final fire = _nextInstance(r.time, tzName);
-    final now = tz.TZDateTime.now(tz.local);
-    final diff = fire.difference(now);
-    return 'tz=${tz.local.name}\nnow=$now\nfire=$fire\nin ${diff.inHours}h ${diff.inMinutes % 60}m';
   }
 }

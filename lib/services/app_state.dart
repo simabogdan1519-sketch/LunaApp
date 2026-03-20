@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/models.dart';
@@ -92,7 +93,16 @@ class AppState extends ChangeNotifier {
 
   // ── Init ──────────────────────────────────────────────────────────────────
 
-  Future<void> init() async { await _loadPrefs(); await loadAll(); await _syncNotifications(); }
+  Timer? _resyncTimer;
+
+  Future<void> init() async {
+    await _loadPrefs();
+    await loadAll();
+    await _syncNotifications();
+    // Re-sync notifications every 6 days so the 7-day window stays fresh
+    _resyncTimer?.cancel();
+    _resyncTimer = Timer.periodic(const Duration(days: 6), (_) => _syncNotifications());
+  }
 
   String lastNotifError = '';
   String lastNotifLog = '';
