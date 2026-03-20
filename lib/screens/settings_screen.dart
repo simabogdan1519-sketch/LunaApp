@@ -180,7 +180,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     final parts = state.pillReminderTime.split(':');
                     final picked = await showTimePicker(context: context, initialTime: TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1])));
                     if (picked != null) {
-                      state.pillReminderTime = '\${picked.hour.toString().padLeft(2,'0')}:\${picked.minute.toString().padLeft(2,'0')}';
+                      state.pillReminderTime = '${picked.hour.toString().padLeft(2,'0')}:${picked.minute.toString().padLeft(2,'0')}';
                       state.savePrefs(); setState(() {});
                     }
                   },
