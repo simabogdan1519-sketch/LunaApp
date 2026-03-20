@@ -28,15 +28,6 @@ class RemindersScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text('🔔 Reminders', style: GoogleFonts.nunito(fontWeight: FontWeight.w900, color: LunaTheme.text)),
         actions: [
-          // Test notification button
-          Padding(
-            padding: const EdgeInsets.only(right: 4),
-            child: IconButton(
-              icon: const Text('🔔', style: TextStyle(fontSize: 18)),
-              tooltip: 'Test notification',
-              onPressed: () => _sendTestNotification(context),
-            ),
-          ),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: GestureDetector(
