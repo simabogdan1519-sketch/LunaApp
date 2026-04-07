@@ -37,11 +37,31 @@ jobs:
           sed -i "s/versionCode .*/versionCode ${{ github.run_number }}/" /tmp/luna_fresh/android/app/build.gradle
           sed -i 's/versionName .*/versionName "1.0.0"/' /tmp/luna_fresh/android/app/build.gradle
 
+      - name: Add 16KB page size support
+        run: |
+          # Required by Google Play for Android 15+ devices
+          cat >> /tmp/luna_fresh/android/app/build.gradle << 'GRADLE'
+
+          android {
+              defaultConfig {
+                  externalNativeBuild {
+                      cmake {
+                          arguments "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
+                      }
+                  }
+              }
+              packagingOptions {
+                  jniLibs {
+                      useLegacyPackaging = false
+                  }
+              }
+          }
+          GRADLE
+
       - name: Set app name to LunaApp
         run: |
           sed -i 's/android:label="[^"]*"/android:label="LunaApp"/' \
             /tmp/luna_fresh/android/app/src/main/AndroidManifest.xml
-          # Also set app_name in strings.xml (this is what appears in launcher)
           mkdir -p /tmp/luna_fresh/android/app/src/main/res/values
           echo '<?xml version="1.0" encoding="utf-8"?><resources><string name="app_name">LunaApp</string></resources>' \
             > /tmp/luna_fresh/android/app/src/main/res/values/strings.xml
@@ -54,23 +74,17 @@ jobs:
       - name: Add notification permissions to AndroidManifest
         run: |
           MANIFEST=/tmp/luna_fresh/android/app/src/main/AndroidManifest.xml
-          
-          # Inject all permissions before <application> tag
-          sed -i 's|<application|<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>\n    <uses-permission android:name="android.permission.VIBRATE"/>\n    <uses-permission android:name="android.permission.WAKE_LOCK"/>\n    <application|' $MANIFEST
-          
-          # Add boot + alarm receivers inside <application>
+
+          sed -i 's|<application|<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>\n    <uses-permission android:name="android.permission.VIBRATE"/>\n    <uses-permission android:name="android.permission.WAKE_LOCK"/>\n    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>\n    <application|' $MANIFEST
+
           sed -i 's|</application>|        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">\n            <intent-filter>\n                <action android:name="android.intent.action.BOOT_COMPLETED"/>\n                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>\n                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>\n            </intent-filter>\n        </receiver>\n        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver"/>\n    </application>|' $MANIFEST
-          
+
           echo "=== AndroidManifest permissions ===" && grep "uses-permission" $MANIFEST
-          # Remove REQUEST_INSTALL_PACKAGES - added by Flutter internally, not needed
           sed -i '/REQUEST_INSTALL_PACKAGES/d' $MANIFEST
-          # Remove REQUEST_INSTALL_PACKAGES - added automatically by Flutter, not needed
-          sed -i '/REQUEST_INSTALL_PACKAGES/d' $MANIFEST
-          echo "=== After cleanup ==="  && grep "uses-permission" $MANIFEST
+          echo "=== After cleanup ===" && grep "uses-permission" $MANIFEST
 
       - name: Verify app icon exists for notifications
         run: |
-          # Notifications use @mipmap/ic_launcher (app icon) - no custom drawable needed
           echo "Using app launcher icon for notifications - no extra steps needed"
           ls /tmp/luna_fresh/android/app/src/main/res/mipmap-hdpi/
 
